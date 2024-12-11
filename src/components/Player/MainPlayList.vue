@@ -3,7 +3,7 @@
   <n-drawer
     v-model:show="statusStore.playListShow"
     :class="{ 'full-player': statusStore.showFullPlayer }"
-    :style="{ '--main-color': mainColor }"
+    :style="{ '--main-color': statusStore.mainColor }"
     :auto-focus="false"
     id="main-playlist"
     style="width: 400px"
@@ -123,13 +123,6 @@ const dataStore = useDataStore();
 const statusStore = useStatusStore();
 
 const playListRef = ref<VirtualListInst | null>(null);
-
-// 列表主色
-const mainColor = computed(() => {
-  const mainColor = statusStore.songCoverTheme?.main;
-  if (!mainColor) return "239, 239, 239";
-  return `${mainColor.r}, ${mainColor.g}, ${mainColor.b}`;
-});
 
 // 播放列表数据
 const playListData = computed(() => {
@@ -288,6 +281,9 @@ const scrollToItem = (index: number, behavior: "smooth" | "auto" = "smooth") => 
       .song-item {
         background-color: rgba(var(--main-color), 0.08);
         &.on {
+          border-color: rgb(var(--main-color));
+        }
+        &:hover {
           border-color: rgb(var(--main-color));
         }
         .num {

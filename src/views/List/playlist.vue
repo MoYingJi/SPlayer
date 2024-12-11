@@ -215,7 +215,12 @@
 import type { CoverType, SongType } from "@/types/main";
 import type { DropdownOption, MessageReactive } from "naive-ui";
 import { songDetail } from "@/api/song";
-import { playlistDetail, playlistAllSongs, deletePlaylist } from "@/api/playlist";
+import {
+  playlistDetail,
+  playlistAllSongs,
+  deletePlaylist,
+  updatePlaylistPrivacy,
+} from "@/api/playlist";
 import { formatCoverList, formatSongsList } from "@/utils/format";
 import { coverLoaded, formatNumber, fuzzySearch, renderIcon } from "@/utils/helper";
 import { renderToolbar } from "@/utils/meta";
@@ -283,6 +288,7 @@ const moreOptions = computed<DropdownOption[]>(() => [
     label: "公开隐私歌单",
     key: "privacy",
     show: playlistDetailData.value?.privacy === 10,
+    props: { onClick: openPrivacy },
     icon: renderIcon("ListLockOpen"),
   },
   {
@@ -481,6 +487,23 @@ const updatePlaylist = () => {
   openUpdatePlaylist(playlistId.value, playlistDetailData.value, () =>
     getPlaylistDetail(playlistId.value, { getList: false, refresh: false }),
   );
+};
+
+// 公开隐私歌单
+const openPrivacy = async () => {
+  if (playlistDetailData.value?.privacy !== 10) return;
+  window.$dialog.warning({
+    title: "公开隐私歌单",
+    content: "确认公开这个歌单？该操作无法撤销！",
+    positiveText: "公开",
+    negativeText: "取消",
+    onPositiveClick: async () => {
+      const result = await updatePlaylistPrivacy(playlistId.value);
+      if (result.code !== 200) return;
+      if (playlistDetailData.value) playlistDetailData.value.privacy = 0;
+      window.$message.success("歌单公开成功");
+    },
+  });
 };
 
 onBeforeRouteUpdate((to) => {

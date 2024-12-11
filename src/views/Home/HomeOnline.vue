@@ -31,7 +31,12 @@
     </n-grid>
     <!-- 公共推荐 -->
     <div v-for="(item, index) in recData" :key="index" class="rec-public">
-      <n-flex class="title" align="center" justify="space-between">
+      <n-flex
+        class="title"
+        align="center"
+        justify="space-between"
+        @click="router.push({ path: item.path ?? undefined })"
+      >
         <n-h3 prefix="bar">
           <n-text>{{ item.name }}</n-text>
           <SvgIcon v-if="item.path" :size="26" name="Right" />
@@ -194,7 +199,10 @@ const getAllRecData = async () => {
   }
 };
 
-onActivated(getAllRecData);
+onMounted(() => {
+  getAllRecData();
+  onActivated(getAllRecData);
+});
 </script>
 
 <style lang="scss" scoped>

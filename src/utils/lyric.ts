@@ -1,8 +1,13 @@
 import { LyricLine, parseLrc, parseYrc } from "@applemusic-like-lyrics/lyric";
-import { keywords } from "@/assets/data/exclude";
 import type { LyricType } from "@/types/main";
-import { useMusicStore } from "@/stores";
+import { useMusicStore, useSettingStore } from "@/stores";
 import { msToS } from "./time";
+
+// 歌词排除内容
+const getExcludeKeywords = () => {
+  const settingStore = useSettingStore();
+  return settingStore.excludeKeywords;
+};
 
 // 恢复默认
 export const resetSongLyric = () => {
@@ -77,7 +82,7 @@ export const parseLrcData = (lrcData: LyricLine[]): LyricType[] => {
       const time = msToS(words[0].startTime);
       const content = words[0].word.trim();
       // 排除内容
-      if (!content || keywords.some((keyword) => content.includes(keyword))) {
+      if (!content || getExcludeKeywords().some((keyword) => content.includes(keyword))) {
         return null;
       }
       return {
@@ -113,7 +118,7 @@ export const parseYrcData = (yrcData: LyricLine[]): LyricType[] => {
         .map((word) => word.content + (word.endsWithSpace ? " " : ""))
         .join("");
       // 排除内容
-      if (!contentStr || keywords.some((keyword) => contentStr.includes(keyword))) {
+      if (!contentStr || getExcludeKeywords().some((keyword) => contentStr.includes(keyword))) {
         return null;
       }
       return {

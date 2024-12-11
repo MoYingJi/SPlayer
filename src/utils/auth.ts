@@ -36,7 +36,6 @@ export const isLogin = (): 0 | 1 | 2 => {
 // 退出登录
 export const toLogout = async () => {
   const dataStore = useDataStore();
-  // 退出登录
   await logout();
   // 去除 cookie
   removeCookie("MUSIC_U");

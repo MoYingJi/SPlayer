@@ -2,7 +2,7 @@
   <div
     v-show="statusStore.showFullPlayer"
     :style="{
-      '--main-color': mainColor,
+      '--main-color': statusStore.mainColor,
       cursor: statusStore.playerMetaShow ? 'auto' : 'none',
     }"
     class="full-player"
@@ -66,7 +66,7 @@
           <!-- 封面 -->
           <PlayerCover />
           <!-- 数据 -->
-          <PlayerData :center="playerDataCenter" :theme="mainColor" />
+          <PlayerData :center="playerDataCenter" :theme="statusStore.mainColor" />
         </div>
         <Transition name="fade" mode="out-in">
           <!-- 评论 -->
@@ -94,7 +94,7 @@
     <!-- 音乐频谱 -->
     <PlayerSpectrum
       v-if="settingStore.showSpectrums"
-      :color="mainColor ? `rgb(${mainColor})` : 'rgb(239 239 239)'"
+      :color="statusStore.mainColor ? `rgb(${statusStore.mainColor})` : 'rgb(239 239 239)'"
       :show="!statusStore.playerMetaShow"
       :height="60"
     />
@@ -142,13 +142,6 @@ const instantLyrics = computed(() => {
     ? musicStore.songLyric.yrcData[statusStore.lyricIndex]
     : musicStore.songLyric.lrcData[statusStore.lyricIndex];
   return { content: content?.content, tran: settingStore.showTran && content?.tran };
-});
-
-// 播放器主色
-const mainColor = computed(() => {
-  const mainColor = statusStore.songCoverTheme?.main;
-  if (!mainColor) return "239, 239, 239";
-  return `${mainColor.r}, ${mainColor.g}, ${mainColor.b}`;
 });
 
 // 隐藏播放元素

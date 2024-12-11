@@ -50,9 +50,8 @@ const { pause: pauseSeek, resume: resumeSeek } = useRafFn(() => {
 
 // 歌词主色
 const mainColor = computed(() => {
-  const mainColor = statusStore.songCoverTheme?.main;
-  if (!mainColor) return "rgb(239, 239, 239)";
-  return `rgb(${mainColor.r}, ${mainColor.g}, ${mainColor.b})`;
+  if (!statusStore.mainColor) return "rgb(239, 239, 239)";
+  return `rgb(${statusStore.mainColor})`;
 });
 
 // 当前歌词

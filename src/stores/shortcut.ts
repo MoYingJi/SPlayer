@@ -21,8 +21,7 @@ interface ShortcutStore {
   };
 }
 
-export const useShortcutStore = defineStore({
-  id: "shortcut",
+export const useShortcutStore = defineStore("shortcut", {
   state: (): ShortcutStore => ({
     // 全局快捷键开启
     globalOpen: true,

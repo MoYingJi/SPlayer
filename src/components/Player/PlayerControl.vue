@@ -94,8 +94,28 @@
           </div>
           <!-- 播放模式 -->
           <div class="menu-icon" @click.stop="player.togglePlayMode(false)">
-            <SvgIcon :name="playModeIcon" />
+            <SvgIcon :name="statusStore.playModeIcon" />
           </div>
+          <!-- 音量调节 -->
+          <n-popover :show-arrow="false" :style="{ '--main-color': statusStore.mainColor }" raw>
+            <template #trigger>
+              <div class="menu-icon" @click.stop="player.toggleMute" @wheel="player.setVolume">
+                <SvgIcon :name="statusStore.playVolumeIcon" />
+              </div>
+            </template>
+            <div class="volume-change" @wheel="player.setVolume">
+              <n-slider
+                v-model:value="statusStore.playVolume"
+                :tooltip="false"
+                :min="0"
+                :max="1"
+                :step="0.01"
+                vertical
+                @update:value="(val) => player.setVolume(val)"
+              />
+              <n-text class="slider-num">{{ statusStore.playVolumePercent }}%</n-text>
+            </div>
+          </n-popover>
           <!-- 播放列表 -->
           <div
             v-if="!statusStore.personalFmMode"
@@ -120,18 +140,6 @@ import player from "@/utils/player";
 const dataStore = useDataStore();
 const musicStore = useMusicStore();
 const statusStore = useStatusStore();
-
-// 当前播放模式图标
-const playModeIcon = computed(() => {
-  const mode = statusStore.playSongMode;
-  return statusStore.playHeartbeatMode
-    ? "HeartBit"
-    : mode === "repeat"
-      ? "Repeat"
-      : mode === "repeat-once"
-        ? "RepeatSong"
-        : "Shuffle";
-});
 
 // 进度条拖拽结束
 const sliderDragend = () => {
@@ -259,11 +267,6 @@ const sliderDragend = () => {
         margin: 6px 8px;
         --n-handle-size: 12px;
         --n-rail-height: 4px;
-        --n-rail-color: rgba(var(--main-color), 0.14);
-        --n-rail-color-hover: rgba(var(--main-color), 0.3);
-        --n-fill-color: rgb(var(--main-color));
-        --n-handle-color: rgb(var(--main-color));
-        --n-fill-color-hover: rgb(var(--main-color));
       }
       span {
         opacity: 0.6;
@@ -276,5 +279,29 @@ const sliderDragend = () => {
       opacity: 1;
     }
   }
+}
+// volume
+.volume-change {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 64px;
+  height: 200px;
+  padding: 12px 16px;
+  backdrop-filter: blur(10px);
+  background-color: rgba(var(--main-color), 0.14);
+  .slider-num {
+    margin-top: 4px;
+    font-size: 12px;
+    color: rgb(var(--main-color));
+  }
+}
+// slider
+.n-slider {
+  --n-rail-color: rgba(var(--main-color), 0.14);
+  --n-rail-color-hover: rgba(var(--main-color), 0.3);
+  --n-fill-color: rgb(var(--main-color));
+  --n-handle-color: rgb(var(--main-color));
+  --n-fill-color-hover: rgb(var(--main-color));
 }
 </style>

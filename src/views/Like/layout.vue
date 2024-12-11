@@ -31,9 +31,10 @@
     <!-- 路由 -->
     <RouterView v-slot="{ Component }">
       <Transition :name="`router-${settingStore.routeAnimation}`" mode="out-in">
-        <KeepAlive>
+        <KeepAlive v-if="settingStore.useKeepAlive">
           <component :is="Component" class="router-view" />
         </KeepAlive>
+        <component v-else :is="Component" class="router-view" />
       </Transition>
     </RouterView>
   </div>

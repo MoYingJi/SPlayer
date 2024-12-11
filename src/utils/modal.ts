@@ -16,6 +16,7 @@ import UpdatePlaylist from "@/components/Modal/UpdatePlaylist.vue";
 import DownloadSong from "@/components/Modal/DownloadSong.vue";
 import MainSetting from "@/components/Setting/MainSetting.vue";
 import UpdateApp from "@/components/Modal/UpdateApp.vue";
+import ExcludeKeywords from "@/components/Modal/ExcludeKeywords.vue";
 
 // 用户协议
 export const openUserAgreement = () => {
@@ -230,6 +231,20 @@ export const openUpdateApp = (data: UpdateInfoType) => {
     title: "发现新版本",
     content: () => {
       return h(UpdateApp, { data, onClose: () => modal.destroy() });
+    },
+  });
+};
+
+// 歌词排除内容
+export const openLyricExclude = () => {
+  window.$modal.create({
+    preset: "card",
+    transformOrigin: "center",
+    autoFocus: false,
+    style: { width: "600px" },
+    title: "歌词排除内容",
+    content: () => {
+      return h(ExcludeKeywords);
     },
   });
 };

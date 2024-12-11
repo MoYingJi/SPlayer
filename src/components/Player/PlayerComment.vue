@@ -129,6 +129,9 @@ onMounted(() => {
   :deep(.n-scrollbar-content) {
     padding-right: 60px;
   }
+  :deep(.n-skeleton) {
+    background-color: rgba(var(--main-color), 0.08);
+  }
   .comment-list {
     margin: 0 auto;
   }

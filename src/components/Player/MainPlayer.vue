@@ -15,6 +15,11 @@
       :max="100"
       :tooltip="false"
       :keyboard="false"
+      :marks="
+        statusStore.chorus && statusStore.progress <= statusStore.chorus
+          ? { [statusStore.chorus]: '' }
+          : undefined
+      "
       class="player-slider"
       @dragstart="player.pause(false)"
       @dragend="sliderDragend"
@@ -168,17 +173,17 @@
           @select="(mode) => player.togglePlayMode(mode)"
         >
           <div class="menu-icon" @click.stop="player.togglePlayMode(false)">
-            <SvgIcon :name="playModeIcon" />
+            <SvgIcon :name="statusStore.playModeIcon" />
           </div>
         </n-dropdown>
         <!-- 音量调节 -->
         <n-popover :show-arrow="false" :style="{ padding: 0 }">
           <template #trigger>
-            <div class="menu-icon" @click.stop="player.toggleMute" @wheel="changeVolume">
-              <SvgIcon :name="playVolumeIcon" />
+            <div class="menu-icon" @click.stop="player.toggleMute" @wheel="player.setVolume">
+              <SvgIcon :name="statusStore.playVolumeIcon" />
             </div>
           </template>
-          <div class="volume-change" @wheel="changeVolume">
+          <div class="volume-change" @wheel="player.setVolume">
             <n-slider
               v-model:value="statusStore.playVolume"
               :tooltip="false"
@@ -188,7 +193,7 @@
               vertical
               @update:value="(val) => player.setVolume(val)"
             />
-            <n-text class="slider-num">{{ playVolumePercentage }}%</n-text>
+            <n-text class="slider-num">{{ statusStore.playVolumePercent }}%</n-text>
           </div>
         </n-popover>
         <!-- 播放列表 -->
@@ -214,7 +219,7 @@
 import type { DropdownOption } from "naive-ui";
 import { useMusicStore, useStatusStore, useDataStore, useSettingStore } from "@/stores";
 import { secondsToTime, calculateCurrentTime } from "@/utils/time";
-import { renderIcon, isElectron } from "@/utils/helper";
+import { renderIcon, isElectron, coverLoaded } from "@/utils/helper";
 import { toLikeSong } from "@/utils/auth";
 import { openDownloadSong, openJumpArtist, openPlaylistAdd } from "@/utils/modal";
 import player from "@/utils/player";
@@ -277,6 +282,20 @@ const songMoreOptions = computed<DropdownOption[]>(() => {
       props: { onClick: () => openDownloadSong(musicStore.playSong) },
       icon: renderIcon("Download"),
     },
+    {
+      key: "comment",
+      label: "查看评论",
+      show: !isLocal,
+      props: {
+        onClick: () => {
+          statusStore.$patch({
+            showFullPlayer: true,
+            showPlayerComment: true,
+          });
+        },
+      },
+      icon: renderIcon("Message"),
+    },
   ];
 });
 
@@ -288,43 +307,6 @@ const sliderDragend = () => {
   player.setSeek(seek);
   player.play();
 };
-
-// 封面加载完成
-const coverLoaded = (e: Event) => {
-  const target = e.target as HTMLElement | null;
-  if (target && target.nodeType === Node.ELEMENT_NODE) {
-    target.style.opacity = "1";
-  }
-};
-
-// 当前音量百分比
-const playVolumePercentage = computed(() => {
-  return Math.round(statusStore.playVolume * 100);
-});
-
-// 当前音量图标
-const playVolumeIcon = computed(() => {
-  const volume = statusStore.playVolume;
-  return volume === 0
-    ? "VolumeOff"
-    : volume < 0.4
-      ? "VolumeMute"
-      : volume < 0.7
-        ? "VolumeDown"
-        : "VolumeUp";
-});
-
-// 当前播放模式图标
-const playModeIcon = computed(() => {
-  const mode = statusStore.playSongMode;
-  return statusStore.playHeartbeatMode
-    ? "HeartBit"
-    : mode === "repeat"
-      ? "Repeat"
-      : mode === "repeat-once"
-        ? "RepeatSong"
-        : "Shuffle";
-});
 
 // 是否展示歌词
 const isShowLyrics = computed(() => {
@@ -348,12 +330,6 @@ const instantLyrics = computed(() => {
     ? `${content?.content}（ ${content?.tran} ）`
     : content?.content;
 });
-
-// 音量条鼠标滚动
-const changeVolume = (e: WheelEvent) => {
-  const deltaY = e.deltaY;
-  player.setVolume(deltaY > 0 ? "down" : "up");
-};
 </script>
 
 <style lang="scss" scoped>
@@ -380,6 +356,7 @@ const changeVolume = (e: WheelEvent) => {
     height: 16px;
     top: -8px;
     left: 0;
+    margin: 0;
     --n-rail-height: 3px;
     --n-handle-size: 14px;
   }

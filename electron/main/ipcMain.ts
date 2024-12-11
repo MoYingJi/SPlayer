@@ -24,6 +24,7 @@ import fs from "fs/promises";
 import log from "../main/logger";
 import Store from "electron-store";
 import fg from "fast-glob";
+import openLoginWin from "./loginWin";
 
 // 注册 ipcMain
 const initIpcMain = (
@@ -535,6 +536,9 @@ const initWinIpcMain = (
 
   // 开始下载更新
   ipcMain.on("start-download-update", () => startDownloadUpdate());
+
+  // 新建窗口
+  ipcMain.on("open-login-web", () => openLoginWin(win!));
 };
 
 // lyric

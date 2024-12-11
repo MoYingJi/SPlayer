@@ -50,8 +50,7 @@ const userDB = localforage.createInstance({
   storeName: "user",
 });
 
-export const useDataStore = defineStore({
-  id: "data",
+export const useDataStore = defineStore("data", {
   state: (): ListState => ({
     // 播放列表
     playList: [],
@@ -168,15 +167,15 @@ export const useDataStore = defineStore({
       }
 
       // 在当前播放位置之后插入歌曲
-      const indexAdd = index + 1
-      this.playList.splice(indexAdd, 0, song)
+      const indexAdd = index + 1;
+      this.playList.splice(indexAdd, 0, song);
       // 移除重复的歌曲（如果存在）
-      const playList = this.playList.filter((item,idx) => idx === indexAdd || item.id !== song.id);
+      const playList = this.playList.filter((item, idx) => idx === indexAdd || item.id !== song.id);
       // 更新本地存储
       this.playList = playList;
       await musicDB.setItem("playList", cloneDeep(playList));
       // 返回刚刚插入的歌曲索引
-      return playList.findIndex(item => item.id === song.id);
+      return playList.findIndex((item) => item.id === song.id);
     },
     // 更改播放历史
     async setHistory(song: SongType) {
@@ -304,6 +303,6 @@ export const useDataStore = defineStore({
   persist: {
     key: "data-store",
     storage: localStorage,
-    paths: ["userLoginStatus", "loginType", "userData", "searchHistory", "catData"],
+    pick: ["userLoginStatus", "loginType", "userData", "searchHistory", "catData"],
   },
 });

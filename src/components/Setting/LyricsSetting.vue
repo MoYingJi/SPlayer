@@ -232,6 +232,13 @@
         </div>
         <n-switch v-model:value="settingStore.lyricsBlur" class="set" :round="false" />
       </n-card>
+      <n-card class="set-item">
+        <div class="label">
+          <n-text class="name">歌词排除内容</n-text>
+          <n-text class="tip" :depth="3"> 歌词中包含的关键词将不会显示 </n-text>
+        </div>
+        <n-button type="primary" strong secondary @click="openLyricExclude">配置</n-button>
+      </n-card>
     </div>
     <div class="set-list">
       <n-h3 prefix="bar"> Apple Music-like Lyrics </n-h3>
@@ -328,6 +335,7 @@ import { useSettingStore, useStatusStore } from "@/stores";
 import { cloneDeep, isEqual } from "lodash-es";
 import { isElectron } from "@/utils/helper";
 import player from "@/utils/player";
+import { openLyricExclude } from "@/utils/modal";
 
 const statusStore = useStatusStore();
 const settingStore = useSettingStore();

@@ -82,9 +82,10 @@
     <!-- 路由 -->
     <RouterView v-slot="{ Component }">
       <Transition :name="`router-${settingStore.routeAnimation}`" mode="out-in">
-        <KeepAlive>
+        <KeepAlive v-if="settingStore.useKeepAlive">
           <component :is="Component" :data="listData" :loading="loading" class="router-view" />
         </KeepAlive>
+        <component v-else :is="Component" :data="listData" :loading="loading" class="router-view" />
       </Transition>
     </RouterView>
     <!-- 目录管理 -->

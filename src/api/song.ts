@@ -114,10 +114,20 @@ export const matchSong = (
  * 歌曲动态封面
  * @param {number} id - 歌曲 id
  */
-
 export const songDynamicCover = (id: number) => {
   return request({
     url: "/song/dynamic/cover",
+    params: { id },
+  });
+};
+
+/**
+ * 副歌时间
+ * @param {number} id - 歌曲 id
+ */
+export const songChorus = (id: number) => {
+  return request({
+    url: "/song/chorus",
     params: { id },
   });
 };

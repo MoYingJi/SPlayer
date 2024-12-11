@@ -55,9 +55,10 @@
           <!-- 路由页面 -->
           <RouterView v-slot="{ Component }">
             <Transition :name="`router-${settingStore.routeAnimation}`" mode="out-in">
-              <KeepAlive :max="20" :exclude="['layout']">
+              <KeepAlive v-if="settingStore.useKeepAlive" :max="20" :exclude="['layout']">
                 <component :is="Component" class="router-view" />
               </KeepAlive>
+              <component v-else :is="Component" class="router-view" />
             </Transition>
           </RouterView>
           <!-- 回顶 -->
