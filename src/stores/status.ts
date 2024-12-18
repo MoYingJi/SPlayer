@@ -38,6 +38,7 @@ interface StatusState {
   showDesktopLyric: boolean;
   showPlayerComment: boolean;
   personalFmMode: boolean;
+  updateCheck: boolean;
 }
 
 export const useStatusStore = defineStore("status", {
@@ -99,6 +100,8 @@ export const useStatusStore = defineStore("status", {
     showDesktopLyric: false,
     // 播放器评论
     showPlayerComment: false,
+    // 更新检查
+    updateCheck: false,
   }),
   getters: {
     // 播放音量图标

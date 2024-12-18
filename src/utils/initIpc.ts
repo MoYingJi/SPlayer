@@ -1,8 +1,14 @@
 import { isElectron } from "./helper";
 import { openUpdateApp } from "./modal";
-import { useMusicStore, useDataStore } from "@/stores";
-import player from "./player";
+import { useMusicStore, useDataStore, useStatusStore } from "@/stores";
 import { toLikeSong } from "./auth";
+import player from "./player";
+
+// 关闭更新状态
+const closeUpdateStatus = () => {
+  const statusStore = useStatusStore();
+  statusStore.updateCheck = false;
+};
 
 // 全局 IPC 事件
 const initIpc = () => {
@@ -35,13 +41,18 @@ const initIpc = () => {
     window.electron.ipcRenderer.on("closeDesktopLyric", () => player.toggleDesktopLyric());
     // 无更新
     window.electron.ipcRenderer.on("update-not-available", () => {
+      closeUpdateStatus();
       window.$message.success("当前已是最新版本");
     });
     // 有更新
-    window.electron.ipcRenderer.on("update-available", (_, info) => openUpdateApp(info));
+    window.electron.ipcRenderer.on("update-available", (_, info) => {
+      closeUpdateStatus();
+      openUpdateApp(info);
+    });
     // 更新错误
     window.electron.ipcRenderer.on("update-error", (_, error) => {
       console.error("Error updating:", error);
+      closeUpdateStatus();
       window.$message.error("更新过程出现错误");
     });
   } catch (error) {

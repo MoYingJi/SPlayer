@@ -145,6 +145,7 @@ jobs:
       # 上传 Snap 包到 Snapcraft 商店
       - name: Publish Snap to Snap Store
         run: snapcraft upload dist/*.snap --release stable
+        continue-on-error: true
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
       # 上传构建产物

@@ -142,7 +142,13 @@
           <n-text class="name">在线服务</n-text>
           <n-text class="tip" :depth="3">是否开启软件的在线服务</n-text>
         </div>
-        <n-switch class="set" :value="useOnlineService" :round="false" @update:value="modeChange" />
+        <n-switch
+          class="set"
+          :disabled="true"
+          :value="useOnlineService"
+          :round="false"
+          @update:value="modeChange"
+        />
       </n-card>
       <n-card class="set-item">
         <div class="label">

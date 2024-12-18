@@ -10,7 +10,15 @@
             {{ packageJson.version }}
           </n-tag>
         </n-flex>
-        <n-button type="primary" strong secondary @click="checkUpdate"> 检查更新 </n-button>
+        <n-button
+          :loading="statusStore.updateCheck"
+          type="primary"
+          strong
+          secondary
+          @click="checkUpdate"
+        >
+          {{ statusStore.updateCheck ? "检查更新中" : "检查更新" }}
+        </n-button>
       </n-card>
       <n-collapse-transition :show="!!updateData">
         <n-card class="set-item update-data">
@@ -73,7 +81,10 @@
 import type { UpdateLogType } from "@/types/main";
 import { getUpdateLog, isElectron, openLink } from "@/utils/helper";
 import { debounce } from "lodash-es";
+import { useStatusStore } from "@/stores";
 import packageJson from "@/../package.json";
+
+const statusStore = useStatusStore();
 
 // 社区数据
 const communityData = [
@@ -102,18 +113,18 @@ const oldVersion = computed<UpdateLogType[]>(() => {
 });
 
 // 检查更新
-const checkUpdate = debounce(() => {
-  if (!isElectron) {
-    window.open(packageJson.github + "/releases", "_blank");
-    return;
-  }
-  window.$notification.info({
-    title: "检查更新",
-    content: "正在检查更新，请稍后...",
-    duration: 3000,
-  });
-  window.electron.ipcRenderer.send("check-update", true);
-}, 300);
+const checkUpdate = debounce(
+  () => {
+    if (!isElectron) {
+      window.open(packageJson.github + "/releases", "_blank");
+      return;
+    }
+    statusStore.updateCheck = true;
+    window.electron.ipcRenderer.send("check-update", true);
+  },
+  300,
+  { leading: true, trailing: false },
+);
 
 // 获取更新日志
 const getUpdateData = async () => (updateData.value = await getUpdateLog());
