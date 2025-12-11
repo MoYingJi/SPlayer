@@ -33,14 +33,13 @@
             <n-text class="meta">时长</n-text>
             <n-text v-if="data?.[0].size && !hiddenSize" class="meta size">大小</n-text>
           </div>
-          <!-- 虚拟列表 -->
-          <n-virtual-list
+          <!-- 自定义虚拟列表 -->
+          <VirtualList
             ref="listRef"
-            :item-size="94"
+            :default-item-size="94"
             :items="virtualListItems"
-            :style="{ height: `calc(100% - 40px)` }"
-            :padding-bottom="80"
-            item-resizable
+            :height="height === 'auto' ? songListHeight - 40 : (height || songListHeight) - 40"
+            :get-item-key="(item, _) => item.key"
             @scroll="onScroll"
           >
             <template #default="{ item, index }">
@@ -77,7 +76,7 @@
                 <n-divider v-else dashed> 没有更多啦 ~ </n-divider>
               </div>
             </template>
-          </n-virtual-list>
+          </VirtualList>
         </div>
       </Transition>
       <!-- 右键菜单 -->
@@ -108,7 +107,7 @@
 </template>
 
 <script setup lang="ts">
-import type { DropdownOption, VirtualListInst } from "naive-ui";
+import type { DropdownOption } from "naive-ui";
 import { SongType, SortType } from "@/types/main";
 import { useMusicStore, useStatusStore } from "@/stores";
 import { entries, isEmpty } from "lodash-es";
@@ -116,6 +115,7 @@ import { sortOptions } from "@/utils/meta";
 import { renderIcon } from "@/utils/helper";
 import { usePlayer } from "@/utils/player";
 import SongListMenu from "@/components/Menu/SongListMenu.vue";
+import VirtualList from "@/components/UI/VirtualList.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -177,7 +177,7 @@ const scrollTop = ref<number>(0);
 const scrollIndex = ref<number>(0);
 
 // 列表元素
-const listRef = ref<VirtualListInst | null>(null);
+const listRef = ref<InstanceType<typeof VirtualList> | null>(null);
 const songListRef = ref<HTMLElement | null>(null);
 
 // 悬浮工具
@@ -298,13 +298,13 @@ const onScroll = (e: Event) => {
 
 // 滚动到顶部
 const scrollToTop = () => {
-  listRef.value?.scrollTo({ index: 0 });
+  listRef.value?.scrollTo({ index: 0, behavior: 'smooth' });
 };
 
 // 滚动到当前播放歌曲
 const scrollToCurrentSong = () => {
   if (hasPlaySong.value >= 0) {
-    listRef.value?.scrollTo({ index: hasPlaySong.value });
+    listRef.value?.scrollTo({ index: hasPlaySong.value, behavior: 'smooth' });
   }
 };
 
@@ -320,13 +320,13 @@ const sortSelect = (key: SortType) => {
     });
   }
   // 滚动到当前播放歌曲或顶部
-  nextTick(() => {
-    if (hasPlaySong.value >= 0) {
-      listRef.value?.scrollTo({ index: hasPlaySong.value });
-    } else {
-      listRef.value?.scrollTo({ index: 0 });
-    }
-  });
+    nextTick(() => {
+      if (hasPlaySong.value >= 0) {
+        listRef.value?.scrollTo({ index: hasPlaySong.value, behavior: 'smooth' });
+      } else {
+        listRef.value?.scrollTo({ index: 0, behavior: 'smooth' });
+      }
+    });
 };
 
 // 删除指定索引
