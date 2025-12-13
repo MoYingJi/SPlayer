@@ -1,9 +1,9 @@
 <!-- 自定义虚拟列表组件 -->
 <template>
-  <div
+  <n-scrollbar
     ref="containerRef"
     class="custom-virtual-list"
-    :style="{ height: `${height}px`, overflow: 'auto' }"
+    :style="{ height: `${height}px` }"
     @scroll="handleScroll"
   >
     <!-- 占位空间 -->
@@ -28,7 +28,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </n-scrollbar>
 </template>
 
 <script setup lang="ts">
@@ -43,12 +43,10 @@ interface Props {
   height: number;
   /** 缓冲区大小（上下额外渲染的项数） */
   bufferSize?: number;
+  /** 默认滚动索引 */
+  defaultScrollIndex?: number;
   /** 获取唯一键的函数 */
   getItemKey?: (item: any, index: number) => string | number;
-}
-
-interface Emits {
-  (e: 'scroll', event: Event);
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -56,7 +54,9 @@ const props = withDefaults(defineProps<Props>(), {
   getItemKey: (_: any, index: number) => index,
 });
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<{
+  (e: "scroll", event: Event);
+}>();
 
 // 容器引用
 const containerRef = ref<HTMLElement | null>(null);
@@ -102,6 +102,8 @@ const totalHeight = computed(() => {
 
 // 计算可见区域
 const calculateVisibleRange = (scrollTop: number) => {
+  if (!scrollTop) scrollTop = 0;
+
   if (props.items.length === 0) {
     actualStartIndex.value = 0;
     actualEndIndex.value = -1;
@@ -140,7 +142,7 @@ const visibleItems = computed(() => {
   return props.items.slice(actualStartIndex.value, actualEndIndex.value + 1);
 });
 
-// Y轴偏移量
+// Y 轴偏移量
 const offsetY = computed(() => {
   if (actualStartIndex.value === 0 || itemTops.value.length === 0) return 0;
   return itemTops.value[actualStartIndex.value];
@@ -149,8 +151,6 @@ const offsetY = computed(() => {
 // 测量项目高度
 const measureItemHeights = () => {
   if (!itemRefs.value.length || props.items.length === 0) return;
-
-  // let hasChanges = false;
 
   itemRefs.value.forEach((el, index) => {
     if (!el) return;
@@ -171,10 +171,6 @@ const measureItemHeights = () => {
       console.warn('测量项目高度时出错:', error);
     }
   });
-
-  // if (hasChanges) {
-  //   updateTops();
-  // }
 };
 
 // 处理滚动事件
@@ -252,10 +248,11 @@ watch(
 onMounted(() => {
   initializeHeights();
   calculateVisibleRange(0);
-
-  if (containerRef.value) {
-    containerRef.value.style.scrollBehavior = 'smooth';
-  }
+  nextTick(() => {
+    if (props.defaultScrollIndex) {
+      scrollTo({ index: props.defaultScrollIndex });
+    }
+  });
 });
 
 // 组件更新后测量高度
@@ -268,35 +265,6 @@ onUpdated(() => {
 
 <style lang="scss" scoped>
 .custom-virtual-list {
-  // 启用平滑滚动
-  scroll-behavior: smooth;
-
-  // 触控板惯性滚动支持
-  -webkit-overflow-scrolling: touch;
-
-  // 确保滚动条样式一致
-  scrollbar-width: thin;
-  scrollbar-color: rgba(128, 128, 128, 0.4) transparent;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background-color: rgba(128, 128, 128, 0.4);
-    border-radius: 4px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-
-    &:hover {
-      background-color: rgba(128, 128, 128, 0.6);
-    }
-  }
-
   // 优化滚动性能
   will-change: scroll-position;
   contain: layout style paint;
@@ -305,7 +273,6 @@ onUpdated(() => {
 .virtual-item {
   // 防止项目间的间隙
   box-sizing: border-box;
-
   // 优化渲染性能
   contain: layout style paint;
 }
