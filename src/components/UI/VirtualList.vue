@@ -3,7 +3,7 @@
   <n-scrollbar
     ref="containerRef"
     class="custom-virtual-list"
-    :style="{ height: `${height}px` }"
+    :style="{ height: `${height}px`, transition: 'height 0.3s' }"
     @scroll="handleScroll"
   >
     <!-- 占位空间 -->
