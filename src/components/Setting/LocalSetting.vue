@@ -95,14 +95,25 @@
         <n-card class="set-item">
           <div class="label">
             <n-text class="name">缓存大小上限</n-text>
-            <n-text class="tip" :depth="3">达到上限后将清理最旧的缓存</n-text>
+            <n-text class="tip" :depth="3">达到上限后将清理最旧的缓存，最低 2GB</n-text>
           </div>
-          <n-select
-            v-model:value="cacheLimit"
-            :options="cacheSizeOptions"
-            class="set"
-            @update:value="changeCacheLimit"
-          />
+          <n-input-group style="width: 40%;">
+            <n-input-number
+              v-model:value="settingStore.cacheLimitValue"
+              :update-value-on-input="false"
+              :disabled="!settingStore.cacheLimitMultiplier"
+              :min="cacheLimitMin / settingStore.cacheLimitMultiplier"
+              :max="9999"
+              style="width: 60%;"
+              @update:value="updateCacheLimit"
+            />
+            <n-select
+              v-model:value="settingStore.cacheLimitMultiplier"
+              :options="cacheLimitUnitOptions"
+              style="width: 40%;"
+              @update:value="updateCacheLimit"
+            />
+          </n-input-group>
         </n-card>
         <n-card class="set-item">
           <div class="label">
@@ -290,7 +301,6 @@ const settingStore = useSettingStore();
 const cacheManager = useCacheManager();
 const cachePath = ref<string>("");
 const cacheSizeDisplay = ref<string>("--");
-const cacheLimit = ref<number>(10); // 本地状态
 
 // 默认下载音质选项
 const downloadQualityOptions = computed(() => {
@@ -331,40 +341,15 @@ const folderStrategyOptions = [
   },
 ];
 
-const cacheSizeOptions = [
-  {
-    label: "不限制",
-    value: 0,
-  },
-  {
-    label: "5G",
-    value: 5,
-  },
-  {
-    label: "10G",
-    value: 10,
-  },
-  {
-    label: "15G",
-    value: 15,
-  },
-  {
-    label: "20G",
-    value: 20,
-  },
-  {
-    label: "25G",
-    value: 25,
-  },
-  {
-    label: "30G",
-    value: 30,
-  },
-  {
-    label: "50G",
-    value: 50,
-  },
+const cacheLimitUnitOptions = [
+  { label: "不限制", value: 0 },
+  { label: "MB", value: 1024 ** 2, },
+  { label: "GB", value: 1024 ** 3, },
 ];
+
+const cacheLimitMin = 2 * (1024 ** 3);
+
+const cacheLimit = computed(() => settingStore.cacheLimitValue * settingStore.cacheLimitMultiplier);
 
 // 选择下载路径
 const choosePath = async () => {
@@ -394,10 +379,16 @@ const confirmChangeCachePath = () => {
   });
 };
 
-// 更改缓存大小限制
-const changeCacheLimit = async (value: number) => {
-  cacheLimit.value = value;
-  await window.api.store.set("cacheLimit", value);
+// 更新缓存大小限制
+const updateCacheLimit = async () => {
+  // 检测最小限制
+  if (settingStore.cacheLimitMultiplier) {
+    if (0 < cacheLimit.value && cacheLimit.value < cacheLimitMin) {
+      settingStore.cacheLimitValue = cacheLimitMin / settingStore.cacheLimitMultiplier;
+    }
+  }
+  // 更新数值
+  await window.api.store.set("cacheLimit", cacheLimit.value);
 };
 
 // 统计全部缓存目录占用大小
@@ -463,8 +454,8 @@ onMounted(async () => {
   try {
     const path = await window.api.store.get("cachePath");
     cachePath.value = path || "";
-    const limit = await window.api.store.get("cacheLimit");
-    if (typeof limit === "number") cacheLimit.value = limit;
+    // 恢复数值
+    await updateCacheLimit();
   } catch (error) {
     console.error("读取缓存路径失败:", error);
   }

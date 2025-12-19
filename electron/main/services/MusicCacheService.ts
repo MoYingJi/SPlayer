@@ -73,18 +73,17 @@ export class MusicCacheService {
    */
   public async cacheMusic(id: number | string, url: string, quality: string): Promise<string> {
     const store = useStore();
-    const limitSizeGB = store.get("cacheLimit") || 10;
-    const limitSizeBytes = limitSizeGB * 1024 * 1024 * 1024;
+    const limitSizeBytes = store.get("cacheLimit") || 10 * (1024 ** 3);
 
     // 如果设置为 0，则不限制
-    if (limitSizeGB > 0) {
+    if (limitSizeBytes > 0) {
       const currentSize = await this.cacheService.getSize();
 
       if (currentSize > limitSizeBytes) {
         // 腾出至少 100MB 空间
         await this.cacheService.cleanOldCache(
           "music",
-          currentSize - limitSizeBytes + 100 * 1024 * 1024,
+          currentSize - limitSizeBytes + (100 * 1024 * 1024),
         );
       }
     }
