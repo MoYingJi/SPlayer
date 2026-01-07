@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useMusicStore, useSettingStore } from "@/stores";
 import { getPlaySongData } from "@/utils/format";
-import { isElectron, isWin } from "@/utils/env";
+import { isElectron, isWin, isLinux } from "@/utils/env";
 import { msToS } from "@/utils/time";
 import { type SmtcEvent } from "@native";
 import { usePlayerController } from "./PlayerController";
@@ -15,6 +15,9 @@ import {
   sendDiscordPlayState,
   enableDiscordRpc,
   updateDiscordConfig,
+  sendMprisMetadata,
+  sendMprisTimeline,
+  sendMprisPlayState,
 } from "./PlayerIpc";
 import { throttle } from "lodash-es";
 
@@ -22,12 +25,22 @@ import { throttle } from "lodash-es";
  * 媒体会话管理器，负责控制媒体控件相关功能
  *
  * 在 Windows 上，会使用原生插件来直接与 SMTC 交互以提供更多功能，在其他平台会使用 `navigator.mediaSession`
+ * 在 Linux 上使用 MPV 引擎时，使用原生 MPRIS 插件提供更好的系统集成
  */
 class MediaSessionManager {
   /**
    * 用来管理封面请求
    */
   private metadataAbortController: AbortController | null = null;
+
+  /**
+   * 检查是否应该使用原生 MPRIS (Linux + MPV 引擎)
+   */
+  private shouldUseNativeMpris(): boolean {
+    if (!isElectron || !isLinux) return false;
+    const settingStore = useSettingStore();
+    return settingStore.playbackEngine === "mpv";
+  }
 
   /**
    * 初始化 MediaSession
@@ -80,6 +93,48 @@ class MediaSessionManager {
         player.syncSmtcPlayMode();
       }
 
+      // 在 Linux 上处理 MPRIS 事件
+      if (!isWin && isLinux) {
+        window.electron.ipcRenderer.removeAllListeners("mpris-event");
+
+        window.electron.ipcRenderer.on("mpris-event", (_, event: any) => {
+          console.log("[MPRIS] 收到系统事件:", event.eventType, event.value);
+          switch (event.eventType) {
+            case "play":
+              player.play();
+              break;
+            case "pause":
+              player.pause();
+              break;
+            case "play_pause":
+              player.playOrPause();
+              break;
+            case "stop":
+              player.pause();
+              break;
+            case "next":
+              player.nextOrPrev("next");
+              break;
+            case "previous":
+              player.nextOrPrev("prev");
+              break;
+            case "seek":
+              if (event.value !== undefined) {
+                // value 是相对偏移量（毫秒）
+                const currentTime = player.getSeek();
+                player.setSeek(currentTime + event.value);
+              }
+              break;
+            case "set_position":
+              if (event.value !== undefined) {
+                // value 是绝对位置（毫秒）
+                player.setSeek(event.value);
+              }
+              break;
+          }
+        });
+      }
+
       // 初始化 Discord RPC
       if (settingStore.discordRpc.enabled) {
         enableDiscordRpc();
@@ -90,6 +145,11 @@ class MediaSessionManager {
       }
 
       if (isWin && settingStore.enableNativeSmtc) return;
+    }
+
+    // 在 Linux + MPV 下使用原生 MPRIS，不需要 navigator.mediaSession
+    if (this.shouldUseNativeMpris()) {
+      return;
     }
 
     if ("mediaSession" in navigator) {
@@ -181,6 +241,18 @@ class MediaSessionManager {
         }
         return; // Windows 且开启了原生 SMTC，则不执行后续的 navigator.mediaSession
       }
+
+      // Linux + MPV 使用原生 MPRIS
+      if (this.shouldUseNativeMpris()) {
+        sendMprisMetadata({
+          title,
+          artist,
+          album,
+          length: song.duration,
+          url: coverUrl,
+        });
+        return;
+      }
     }
 
     if ("mediaSession" in navigator) {
@@ -236,8 +308,23 @@ class MediaSessionManager {
         sendSmtcTimeline(position, duration);
         return;
       }
+      // Linux + MPV 使用原生 MPRIS
+      if (this.shouldUseNativeMpris()) {
+        sendMprisTimeline(position, duration);
+        return;
+      }
     }
     this.throttledUpdatePositionState(duration, position);
+  }
+
+  /**
+   * 更新播放状态到 MPRIS (仅 Linux + MPV)
+   * @param isPlaying 是否正在播放
+   */
+  public updatePlaybackStatus(isPlaying: boolean) {
+    if (this.shouldUseNativeMpris()) {
+      sendMprisPlayState(isPlaying ? "Playing" : "Paused");
+    }
   }
 
   /**

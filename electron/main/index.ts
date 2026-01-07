@@ -14,6 +14,7 @@ import loadWindow from "./windows/load-window";
 import mainWindow from "./windows/main-window";
 import initIpc from "./ipc";
 import { shutdownSmtc } from "./ipc/ipc-smtc";
+import { shutdownMpris } from "./ipc/ipc-mpris";
 
 // 屏蔽报错
 process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = "true";
@@ -105,6 +106,8 @@ class MainProcess {
 
       // 清理 SMTC 相关资源
       shutdownSmtc();
+      // 清理 MPRIS 相关资源
+      shutdownMpris();
     });
 
     // 退出前

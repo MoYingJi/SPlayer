@@ -1,0 +1,24 @@
+{
+  "name": "mpris-for-splayer",
+  "version": "0.1.0",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "os": ["linux"],
+  "gypfile": false,
+  "description": "Native MPRIS bridge for SPlayer (Linux, MPV engine)",
+  "author": "SPlayer Team",
+  "license": "MIT",
+  "scripts": {
+    "build": "napi build --platform --release --strip",
+    "build:debug": "napi build --platform"
+  },
+  "napi": {
+    "binaryName": "mpris-for-splayer",
+    "targets": [
+      "x86_64-unknown-linux-gnu"
+    ]
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0"
+  }
+}
