@@ -13,6 +13,17 @@ interface LastfmErrorResponse {
   message: string;
 }
 
+interface LastfmAuthTokenResponse {
+  token: string;
+}
+
+interface LastfmSessionResponse {
+  session: {
+    key: string;
+    name: string;
+  };
+}
+
 const LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/";
 
 // Last.fm API 客户端
@@ -21,44 +32,66 @@ const lastfmClient: AxiosInstance = axios.create({
   timeout: 15000,
 });
 
-// 响应拦截器，显示错误提示
+export const getLastfmErrorMessage = (code: number, fallback: string) => {
+  switch (code) {
+    case 2:
+      return "无效服务 - 此服务不存在";
+    case 3:
+      return "无效方法 - 此包中不存在具有该名称的方法";
+    case 4:
+      return "身份验证失败 - 您没有访问该服务的权限";
+    case 5:
+      return "格式无效 - 此服务不存在该格式";
+    case 6:
+      return "参数无效 - 您的请求缺少必需参数";
+    case 7:
+      return "指定的资源无效";
+    case 8:
+      return "操作失败 - 出现了其他问题";
+    case 9:
+      return "会话密钥无效 - 请重新验证身份";
+    case 10:
+      return "API Key 无效，请检查是否填写正确";
+    case 13:
+      return "API Secret 无效，请检查是否填写正确";
+    case 16:
+      return "处理请求时出现临时错误，请重试";
+    case 26:
+      return "API 密钥已暂停";
+    case 29:
+      return "超出速率限制 - 您的 IP 地址在短时间内发出了过多请求";
+    default:
+      return fallback;
+  }
+};
+
+const shouldDisconnect = (code: number) => code === 9 || code === 4 || code === 26;
+
+// 响应拦截器，处理需要自动断开连接的错误
 lastfmClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<LastfmErrorResponse>) => {
     const response = error.response;
     if (!response) {
-      window.$message.error("Last.fm 请求失败，请检查网络连接");
       return Promise.reject(error);
     }
 
     const { status, data } = response;
 
-    switch (status) {
-      case 403: {
-        const code = data?.error;
-        if (code === 9 || code === 4 || code === 26) {
-          window.$message.error("Last.fm 认证失败，需要重新授权，已断开与 Last.fm 的连接！");
-          disconnect();
-        } else {
-          window.$message.error("Last.fm 认证失败，可能需要重新授权");
-        }
-        break;
+    const code = data?.error;
+    if (typeof code === "number") {
+      if (code === 14 || code === 15) {
+        return Promise.reject(error);
       }
-      case 401:
-        window.$message.error("Last.fm 未授权，已断开与 Last.fm 的连接！");
+      if (shouldDisconnect(code)) {
+        window.$message.error("Last.fm 认证失败，需要重新授权，已断开与 Last.fm 的连接！");
         disconnect();
-        break;
-      case 429:
-        window.$message.error("Last.fm 请求过于频繁，请稍后再试");
-        break;
-      case 500:
-      case 502:
-      case 503:
-        window.$message.error("Last.fm 服务暂时不可用，请稍后再试");
-        break;
-      default:
-        window.$message.error("Last.fm 请求失败");
-        break;
+      } else {
+        window.$message.error(getLastfmErrorMessage(code, data?.message || "Last.fm 请求失败"));
+      }
+    } else if (status === 401) {
+      window.$message.error("Last.fm 未授权，已断开与 Last.fm 的连接！");
+      disconnect();
     }
     return Promise.reject(error);
   },
@@ -122,11 +155,11 @@ const generateSignature = (params: Record<string, string | number>): string => {
  * @param params 参数
  * @param needAuth 是否需要签名
  */
-const lastfmRequest = async (
+const lastfmRequest = async <T extends object>(
   method: string,
   params: Record<string, string | number> = {},
   needAuth: boolean = false,
-) => {
+): Promise<T> => {
   const requestParams = prepareRequestParams(method, params);
 
   if (needAuth) {
@@ -135,7 +168,21 @@ const lastfmRequest = async (
 
   try {
     const response = await lastfmClient.get("", { params: requestParams });
-    return response.data;
+    const data = response.data as LastfmErrorResponse | T;
+    if (data && typeof data === "object" && "error" in data) {
+      const apiError = new Error(
+        typeof data.message === "string" && data.message ? data.message : "Last.fm 请求失败",
+      ) as AxiosError<LastfmErrorResponse>;
+      apiError.response = {
+        status: response.status,
+        data: data as LastfmErrorResponse,
+        statusText: response.statusText,
+        headers: response.headers,
+        config: response.config,
+      };
+      throw apiError;
+    }
+    return data as T;
   } catch (error) {
     console.error("Last.fm API 错误:", error);
     throw error;
@@ -147,7 +194,10 @@ const lastfmRequest = async (
  * @param method API 方法名
  * @param params 参数
  */
-const lastfmPostRequest = async (method: string, params: Record<string, string | number> = {}) => {
+const lastfmPostRequest = async <T extends object>(
+  method: string,
+  params: Record<string, string | number> = {},
+): Promise<T> => {
   const requestParams = prepareRequestParams(method, params);
 
   requestParams.api_sig = generateSignature(requestParams);
@@ -163,7 +213,21 @@ const lastfmPostRequest = async (method: string, params: Record<string, string |
         "Content-Type": "application/x-www-form-urlencoded",
       },
     });
-    return response.data;
+    const data = response.data as LastfmErrorResponse | T;
+    if (data && typeof data === "object" && "error" in data) {
+      const apiError = new Error(
+        typeof data.message === "string" && data.message ? data.message : "Last.fm 请求失败",
+      ) as AxiosError<LastfmErrorResponse>;
+      apiError.response = {
+        status: response.status,
+        data: data as LastfmErrorResponse,
+        statusText: response.statusText,
+        headers: response.headers,
+        config: response.config,
+      };
+      throw apiError;
+    }
+    return data as T;
   } catch (error) {
     console.error("Last.fm API POST 错误:", error);
     throw error;
@@ -173,8 +237,8 @@ const lastfmPostRequest = async (method: string, params: Record<string, string |
 /**
  * 获取认证令牌
  */
-export const getAuthToken = async () => {
-  return await lastfmRequest("auth.getToken", {}, true);
+export const getAuthToken = async (): Promise<LastfmAuthTokenResponse> => {
+  return await lastfmRequest<LastfmAuthTokenResponse>("auth.getToken", {}, true);
 };
 
 /**
@@ -190,8 +254,8 @@ export const getAuthUrl = (token: string): string => {
  * 获取会话密钥
  * @param token 认证令牌
  */
-export const getSession = async (token: string) => {
-  return await lastfmRequest("auth.getSession", { token }, true);
+export const getSession = async (token: string): Promise<LastfmSessionResponse> => {
+  return await lastfmRequest<LastfmSessionResponse>("auth.getSession", { token }, true);
 };
 
 /**
