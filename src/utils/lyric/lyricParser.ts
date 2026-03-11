@@ -2,6 +2,7 @@ import type { LyricLine } from "@applemusic-like-lyrics/lyric";
 import { cloneDeep } from "lodash-es";
 import { parseLrc } from "./parseLrc";
 import { extractLyricContent } from "./parseQrc";
+import { parseWordLrc } from "./parseWordLrc";
 
 /**
  * LRC 格式类型
@@ -15,58 +16,15 @@ export enum LrcFormat {
   Enhanced = "enhanced",
 }
 
-/** LyricWord 类型 */
-type LyricWord = { word: string; startTime: number; endTime: number; romanWord: string };
-
 // 预编译正则表达式
 const META_TAG_REGEX = /^\[[a-z]+:/i;
 const TIME_TAG_REGEX = /\[(\d{2}):(\d{2})\.(\d{1,})\]/g;
 const ENHANCED_TIME_TAG_REGEX = /<(\d{2}):(\d{2})\.(\d{1,})>/;
-// 移除全局带状态的正则，改为在函数内使用 matchAll 或重新构建
-const LINE_TIME_REGEX = /^\[(\d{2}):(\d{2})\.(\d{1,})\]/;
-
 // QRC 解析相关正则 - 提前编译
 const QRC_LINE_PATTERN = /^\[(\d+),(\d+)\](.*)$/;
 const QRC_WORD_PATTERN = /(.*?)\((\d+),(\d+)\)/g;
 
-const DEFAULT_WORD_DURATION = 1000;
 const ALIGN_TOLERANCE_MS = 300;
-
-/**
- * 解析时间戳为毫秒
- * 使用字符串补齐处理，避免浮点数计算误差
- */
-const parseTimeToMs = (min: string, sec: string, ms: string): number => {
-  const minutes = parseInt(min, 10);
-  const seconds = parseInt(sec, 10);
-  // 补齐到 3 位 (例如 "5" -> "500", "05" -> "050", "1234" -> "123")
-  const msNormalized = ms.padEnd(3, "0").slice(0, 3);
-  const milliseconds = parseInt(msNormalized, 10);
-  return minutes * 60 * 1000 + seconds * 1000 + milliseconds;
-};
-
-/**
- * 创建 LyricWord 对象
- */
-const createWord = (word: string, startTime: number, endTime: number = startTime): LyricWord => ({
-  word,
-  startTime,
-  endTime,
-  romanWord: "",
-});
-
-/**
- * 创建 LyricLine 对象
- */
-const createLine = (words: LyricWord[], startTime: number, endTime: number = 0): LyricLine => ({
-  words,
-  startTime,
-  endTime,
-  translatedLyric: "",
-  romanLyric: "",
-  isBG: false,
-  isDuet: false,
-});
 
 /**
  * 检测 LRC 格式类型
@@ -88,165 +46,13 @@ export const detectLrcFormat = (content: string): LrcFormat => {
   }
   return LrcFormat.Line;
 };
-
-/**
- * 解析逐字 LRC 格式
- * 优化：在解析过程中直接计算 endTime，避免二次遍历
- */
-export const parseWordByWordLrc = (content: string): LyricLine[] => {
-  const result: LyricLine[] = [];
-  let prevLine: LyricLine | null = null;
-  const WORD_BY_WORD_PATTERN = /\[(\d{2}):(\d{2})\.(\d{1,})\]([^[\]]*)/g;
-
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || META_TAG_REGEX.test(line)) continue;
-
-    const words: LyricWord[] = [];
-    let lineStartTime = Infinity;
-
-    let prevWord: LyricWord | null = null;
-
-    const matches = line.matchAll(WORD_BY_WORD_PATTERN);
-
-    for (const match of matches) {
-      const startTime = parseTimeToMs(match[1], match[2], match[3]);
-      const wordText = match[4];
-
-      if (!wordText && words.length === 0) continue;
-
-      lineStartTime = Math.min(lineStartTime, startTime);
-
-      // 设置上一个字的结束时间
-      if (prevWord) {
-        prevWord.endTime = startTime;
-      }
-
-      if (wordText) {
-        const newWord = createWord(wordText, startTime);
-        words.push(newWord);
-        prevWord = newWord;
-      }
-    }
-
-    // 处理行内最后一个字
-    if (prevWord) {
-      prevWord.endTime = prevWord.startTime + DEFAULT_WORD_DURATION;
-    }
-
-    if (words.length > 0) {
-      const lineObj = createLine(words, lineStartTime === Infinity ? 0 : lineStartTime);
-      // 设置行结束时间为最后一个字的结束时间
-      lineObj.endTime = words[words.length - 1].endTime;
-
-      // 修正上一行的结束时间 (Single Pass)
-      if (prevLine) {
-        const prevLastWord = prevLine.words[prevLine.words.length - 1];
-        // 只有当当前行开始时间晚于上一行最后一个字的开始时间时，才进行截断
-        if (lineObj.startTime > prevLastWord.startTime) {
-          prevLastWord.endTime = Math.min(prevLastWord.endTime, lineObj.startTime);
-          prevLine.endTime = prevLastWord.endTime;
-        }
-      }
-
-      result.push(lineObj);
-      prevLine = lineObj;
-    }
-  }
-
-  return result;
-};
-
-/**
- * 解析增强型 LRC 格式 (ESLyric)
- */
-export const parseEnhancedLrc = (content: string): LyricLine[] => {
-  const result: LyricLine[] = [];
-  let prevLine: LyricLine | null = null;
-  const ENHANCED_WORD_PATTERN = /<(\d{2}):(\d{2})\.(\d{1,})>([^<]*)/g;
-
-  for (const rawLine of content.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || META_TAG_REGEX.test(line)) continue;
-
-    const lineTimeMatch = LINE_TIME_REGEX.exec(line);
-    if (!lineTimeMatch) continue;
-
-    const lineStartTime = parseTimeToMs(lineTimeMatch[1], lineTimeMatch[2], lineTimeMatch[3]);
-    const contentAfterTime = line.slice(lineTimeMatch[0].length);
-
-    const words: LyricWord[] = [];
-
-    // 检查是否有增强型标记
-    if (ENHANCED_TIME_TAG_REGEX.test(contentAfterTime)) {
-      let prevWord: LyricWord | null = null;
-
-      const matches = contentAfterTime.matchAll(ENHANCED_WORD_PATTERN);
-
-      for (const match of matches) {
-        const startTime = parseTimeToMs(match[1], match[2], match[3]);
-        const wordText = match[4];
-
-        if (prevWord) {
-          prevWord.endTime = startTime;
-        }
-
-        if (wordText) {
-          const newWord = createWord(wordText, startTime);
-          words.push(newWord);
-          prevWord = newWord;
-        }
-      }
-
-      if (prevWord) {
-        prevWord.endTime = prevWord.startTime + DEFAULT_WORD_DURATION; // 默认兜底
-      }
-    } else {
-      // 无增强型标记，作为整行处理
-      const text = contentAfterTime.trim();
-      if (text) {
-        words.push(createWord(text, lineStartTime, lineStartTime + DEFAULT_WORD_DURATION)); // 默认持续1s
-      }
-    }
-
-    if (words.length > 0) {
-      const lineObj = createLine(words, lineStartTime);
-      lineObj.endTime = words[words.length - 1].endTime;
-
-      // 修正上一行的结束时间 (Single Pass)
-      if (prevLine) {
-        const prevLastWord = prevLine.words[prevLine.words.length - 1];
-        if (lineObj.startTime > prevLastWord.startTime) {
-          prevLastWord.endTime = Math.min(prevLastWord.endTime, lineObj.startTime);
-          prevLine.endTime = prevLastWord.endTime;
-        }
-      }
-
-      result.push(lineObj);
-      prevLine = lineObj;
-    }
-  }
-
-  return result;
-};
-
 /**
  * 智能解析 LRC 歌词
  */
 export const parseSmartLrc = (content: string): { format: LrcFormat; lines: LyricLine[] } => {
   const format = detectLrcFormat(content);
 
-  let lines: LyricLine[];
-  switch (format) {
-    case LrcFormat.WordByWord:
-      lines = parseWordByWordLrc(content);
-      break;
-    case LrcFormat.Enhanced:
-      lines = parseEnhancedLrc(content);
-      break;
-    default:
-      lines = parseLrc(content) || [];
-  }
+  const lines: LyricLine[] = parseWordLrc(content);
 
   console.log(`[LyricParser] 检测到歌词格式: ${format}, 共 ${lines.length} 行`);
   return { format, lines };
