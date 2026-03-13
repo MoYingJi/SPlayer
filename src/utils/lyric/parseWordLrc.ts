@@ -1,35 +1,17 @@
-import { LyricLine } from "@applemusic-like-lyrics/lyric";
+import { LyricLine, LyricWord } from "@applemusic-like-lyrics/lyric";
 import { alignLyricLines } from "@/utils/lyric/lyricParser";
 
-// 定义 LyricLine 和 LyricWord 的子集，方便一点
+// 简单解析 lrc 后得到的类型
 
-interface LrcWord {
-  startTime: number;
-  endTime: number;
-  word: string;
-}
-interface LrcLine {
-  startTime: number;
-  endTime: number;
-  words: LrcWord[];
-}
+type LrcSegment =
+  | { type: "text"; content: string }
+  | { type: "time"; brackets: "square" | "angle"; timestamp: number };
 
-// 定义简单的时间标签接口，方便解析
-
-interface SimpleLrcTimeTag {
-  brackets: "square" | "angle";
-  milliseconds: number;
-}
-interface SimpleLrcMetadataLine {
-  key: string;
-  value: string;
-}
-type SimpleParsedLrcWord = string | SimpleLrcTimeTag;
-type SimpleParsedLrcLine = SimpleParsedLrcWord[] | SimpleLrcMetadataLine;
+type LrcMetadata = Record<string, string>;
 
 // 一些抄过来的正则表达式，我正则全然苦手
 
-const META_TAG_REGEX = /^\[([a-zA-Z][a-zA-Z0-9]*?]):(.+)]?$/;
+const META_TAG_REGEX = /^\[([a-zA-Z][a-zA-Z0-9]*?):(.+)]$/;
 const SQUARE_TIME_TAG_REGEX = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d+))?]/;
 const ANGLE_TIME_TAG_REGEX = /<(\d{1,3}):(\d{1,2})(?:[.:](\d+))?>/;
 
@@ -68,27 +50,32 @@ const getTimeTagBrackets = (
 };
 
 /**
- * 简单解析 lrcLine 为 string 或时间标签
+ * 简单解析 lrcLine 为 SimpleParsedLrcLine，并将元数据存入 metadata 对象
  */
-const parseSimpleLrcLine = (lrcLine: string): SimpleParsedLrcLine => {
+const parseSimpleLrcLine = (lrcLine: string, metadata?: LrcMetadata): LrcSegment[] => {
   lrcLine = lrcLine.trim();
   if (!lrcLine) return [];
 
-  const matchMetaLine = META_TAG_REGEX.exec(lrcLine);
-  if (matchMetaLine) {
-    const key = matchMetaLine[1].toLowerCase();
-    const value = matchMetaLine[2].trim();
+  // 尝试匹配元数据
+  const matchMetadataLine = META_TAG_REGEX.exec(lrcLine);
+  if (matchMetadataLine) {
+    if (!metadata) {
+      console.warn("未提供 metadata 对象，跳过元数据:", lrcLine);
+      return [];
+    }
+
+    const key = matchMetadataLine[1].trim().toLowerCase();
+    const value = matchMetadataLine[2].trim();
     if (!key || !value) {
       console.warn("无效的元数据行:", lrcLine);
       return [];
     }
-    return {
-      key: matchMetaLine[1],
-      value: matchMetaLine[2],
-    };
+    metadata[key] = value;
+    return [];
   }
 
-  const parsedWords: SimpleParsedLrcWord[] = [];
+  // 解析歌词行
+  const parsedWords: LrcSegment[] = [];
   let parsedIndex = 0;
   let pointerIndex = 0;
 
@@ -120,12 +107,16 @@ const parseSimpleLrcLine = (lrcLine: string): SimpleParsedLrcLine => {
 
       // 将标签前的文本加入结果
       if (startBracketIndex > parsedIndex) {
-        parsedWords.push(lrcLine.substring(parsedIndex, startBracketIndex));
+        parsedWords.push({
+          type: "text",
+          content: lrcLine.substring(parsedIndex, startBracketIndex),
+        });
       }
       // 将时间标签加入结果
       parsedWords.push({
+        type: "time",
         brackets,
-        milliseconds: parseTimeToMs(match[1], match[2], match[3]),
+        timestamp: parseTimeToMs(match[1], match[2], match[3]),
       });
       pointerIndex = endBracketIndex;
       parsedIndex = pointerIndex + 1;
@@ -133,7 +124,13 @@ const parseSimpleLrcLine = (lrcLine: string): SimpleParsedLrcLine => {
 
     // 行末尾
     if (pointerIndex >= lrcLine.length) {
-      if (pointerIndex > parsedIndex) parsedWords.push(lrcLine.substring(parsedIndex));
+      if (pointerIndex > parsedIndex) {
+        // 将最后剩余的文本加入结果
+        parsedWords.push({
+          type: "text",
+          content: lrcLine.substring(parsedIndex),
+        });
+      }
       break;
     }
     // 继续往下找
@@ -144,53 +141,14 @@ const parseSimpleLrcLine = (lrcLine: string): SimpleParsedLrcLine => {
 };
 
 /**
- * 处理 SimpleParsedLrcLine 中的元数据行，转换为仅含有 SimpleParsedLrcWord 的歌词
+ * 将前面简单解析过的 LrcSegment[] 转换为 LyricLine
  */
-const processMetadata = (lrcLines: SimpleParsedLrcLine[]): SimpleParsedLrcWord[][] => {
-  const metadata: Record<string, string> = {};
-  const processedLines: SimpleParsedLrcWord[][] = [];
-
-  for (const line of lrcLines) {
-    if ("key" in line && "value" in line) {
-      metadata[line.key] = line.value;
-    } else if (Array.isArray(line)) {
-      processedLines.push(line);
-    } else {
-      console.warn("未知的行类型，跳过:", line);
-    }
-  }
-
-  if (metadata.offset) {
-    const offsetMs = parseInt(metadata.offset, 10);
-    if (offsetMs === 0) {
-      /* offset 为 0 不应用 */
-    } else if (!isFinite(offsetMs)) {
-      console.warn("无效的 offset 值:", metadata.offset);
-    } else {
-      // 将 offset 应用到所有时间标签上
-      for (const line of processedLines) {
-        for (const word of line) {
-          if (typeof word !== "string") {
-            const newTime = word.milliseconds + offsetMs;
-            word.milliseconds = Math.max(0, newTime); // 确保时间不为负数
-          }
-        }
-      }
-    }
-  }
-
-  return processedLines;
-}
-
-/**
- * 将前面简单解析过的 string 和时间标签转换为 LrcLine
- */
-const parseLrcLine = (simpleLine: SimpleParsedLrcWord[]): LrcLine | null => {
+const parseLrcLine = (simpleLine: LrcSegment[]): LyricLine | null => {
   if (simpleLine.length === 0) {
     console.warn("无法解析空行");
     return null;
   }
-  if (typeof simpleLine[0] === "string") {
+  if (simpleLine[0].type !== "time") {
     console.warn("行首非时间标签");
     return null;
   }
@@ -199,28 +157,34 @@ const parseLrcLine = (simpleLine: SimpleParsedLrcWord[]): LrcLine | null => {
     return null;
   }
 
-  const lineStartTime = (simpleLine[0] as SimpleLrcTimeTag).milliseconds;
+  const lineStartTime = simpleLine[0].timestamp;
   let lineEndTime = Infinity;
 
-  const words: LrcWord[] = [];
+  const words: LyricWord[] = [];
   let tempTime = lineStartTime;
   let tempString = "";
 
   // 遍历行内元素
   for (const word of simpleLine) {
-    if (typeof word === "string") {
-      tempString += word;
-    } else {
-      // 时间标签
-      const tempEnd = word.milliseconds;
-      if (tempString)
-        words.push({
-          startTime: tempTime,
-          endTime: tempEnd,
-          word: tempString,
-        });
-      tempTime = tempEnd;
-      tempString = "";
+    switch (word.type) {
+      case "text": {
+        tempString += word.content;
+        break;
+      }
+      case "time": {
+        const tempEnd = word.timestamp;
+        if (tempString)
+          words.push({
+            startTime: tempTime,
+            endTime: tempEnd,
+            word: tempString,
+
+            romanWord: "",
+          });
+        tempTime = tempEnd;
+        tempString = "";
+        break;
+      }
     }
   }
   // 行结尾无文本，说明最后一个 word 是时间标签：设置行结束时间
@@ -235,53 +199,99 @@ const parseLrcLine = (simpleLine: SimpleParsedLrcWord[]): LrcLine | null => {
       startTime: tempTime,
       endTime: lineEndTime,
       word: tempString,
+
+      romanWord: "",
     });
   }
 
   return {
     startTime: lineStartTime,
     endTime: lineEndTime,
-    words,
+    words: words,
+
+    translatedLyric: "",
+    romanLyric: "",
+    isBG: false,
+    isDuet: false,
   };
 };
 
 /**
- * 解析 lrc 内容为 LrcLine 数组
+ * 将 offset 应用到解析结果中
+ * @param lrcLines 简单解析得到的 LrcSegment 二维数组
+ * @param offset 从元数据中获取的 offset 值，单位为毫秒
+ */
+const applyOffset = (lrcLines: LrcSegment[][], offset: number) => {
+  if (!isFinite(offset)) {
+    console.warn("无效的 offset 值:", offset);
+    return;
+  }
+
+  // 将 offset 应用到所有时间标签上
+  for (const line of lrcLines) {
+    for (const word of line) {
+      if (word.type === "time") {
+        const newTime = word.timestamp + offset;
+        word.timestamp = Math.max(0, newTime); // 确保时间不为负数
+      }
+    }
+  }
+};
+
+/**
+ * 解析 lrc 内容为 LyricLine 数组
  *
  * 会将 lrcContent 按行分割，
  * 先进行简单解析得到 string 和时间标签的混合数组，
- * 再将每行的混合数组转换为 LrcLine，
+ * 再将每行的混合数组转换为 LyricLine，
  * 最后为没有明确结束时间的行设置结束时间为下一行的开始时间
  */
-const parseLrcLines = (lrcContent: string): LrcLine[] => {
-  const parsedSimpleLines = lrcContent
+const parseLrcLines = (lrcContent: string): LyricLine[] => {
+  const metadata: LrcMetadata = {};
+  const simpleLines = lrcContent
     .split(/\r?\n/)
-    .map(parseSimpleLrcLine)
-  const simpleLines = processMetadata(parsedSimpleLines)
-    .filter((line) => line.length > 0);
+    .filter((line) => line.length > 0)
+    .map((line) => parseSimpleLrcLine(line, metadata));
 
-  const parsedLines: LrcLine[] = [];
+  const metadataOffset = parseInt(metadata.offset ?? "0", 10);
+  if (metadataOffset) applyOffset(simpleLines, metadataOffset);
+
+  const parsedLines: LyricLine[] = [];
+
+  // 维护一个数组，存储之前行缺失结束时间的行
+  // 这些行开始时间相同，且必定是正在处理的行的前面几行
+  let missingEndTimeLines: LyricLine[] = [];
 
   for (const simpleLine of simpleLines) {
     const line = parseLrcLine(simpleLine);
     if (!line) continue;
-    // 如果前面的行没有明确的结束时间 (Infinity)，则将其结束时间设置为当前行的开始时间
-    let i = parsedLines.length - 1;
-    // 先跳过所有开始时间大于等于当前行的行（考虑 line 为译文，prev 为主行）
-    for (; i >= 0; i--) {
-      const prev = parsedLines[i];
-      if (prev.startTime < line.startTime) break;
-    }
-    // 设置结束时间为当前行开始时间，直到遇见一个已经有明确结束时间的行
-    for (; i >= 0; i--) {
-      const prev = parsedLines[i];
-      if (prev.endTime !== Infinity) break;
-      prev.endTime = line.startTime;
-      prev.words[prev.words.length - 1].endTime = line.startTime;
+
+    // 尝试填充之前行缺失的结束时间
+    if (missingEndTimeLines.length && missingEndTimeLines[0].startTime < line.startTime) {
+      // 之前有行缺失结束时间，且开始时间早于当前行，说明之前的行结束了
+      // 更新结束时间为当前行开始时间并清空数组
+      for (const missingEndTimeLine of missingEndTimeLines) {
+        missingEndTimeLine.endTime = line.startTime;
+
+        const lastWordInMissingLine = missingEndTimeLine.words[missingEndTimeLine.words.length - 1];
+        if (lastWordInMissingLine.endTime === Infinity) {
+          lastWordInMissingLine.endTime = line.startTime;
+        }
+      }
+      missingEndTimeLines = [];
     }
 
     // 如果行内没有歌词文本，则跳过该行（空白行仍可参与前面的填充结束时间）
     if (line.words.length === 0) continue;
+
+    // 该行没有明确的结束时间
+    if (line.endTime === Infinity) {
+      if (missingEndTimeLines.length && missingEndTimeLines[0].startTime === line.startTime) {
+        missingEndTimeLines.push(line);
+      } else {
+        missingEndTimeLines = [line];
+      }
+    }
 
     parsedLines.push(line);
   }
@@ -292,29 +302,13 @@ const parseLrcLines = (lrcContent: string): LrcLine[] => {
 /**
  * 解析各种各样的 lrc
  *
- * 调用了 parseLrcLines，将其转为 AMLL 支持的 LyricLine 结构，并对齐了歌词的翻译和音译
+ * 调用了 parseLrcLines，并对齐了歌词的翻译和音译
  *
  * @param lrcContent lrc 原始内容
  * @see parseLrcLines
  */
 export const parseWordLrc = (lrcContent: string): LyricLine[] => {
-  const lrcLines = parseLrcLines(lrcContent);
-
-  const converted = lrcLines.map((line) => ({
-    startTime: line.startTime,
-    endTime: line.endTime,
-    romanLyric: "",
-    translatedLyric: "",
-    isBG: false,
-    isDuet: false,
-    words: line.words.map((word) => ({
-      startTime: word.startTime,
-      endTime: word.endTime,
-      word: word.word,
-      romanWord: "",
-      translatedWord: "",
-    })),
-  }));
+  const parsed = parseLrcLines(lrcContent);
 
   const aligned = alignLyricLines(converted, { skipSort: true });
 
