@@ -1,5 +1,5 @@
 import { LyricLine, LyricWord } from "@applemusic-like-lyrics/lyric";
-import { alignLyricLines } from "@/utils/lyric/lyricParser";
+import { alignLyricLines } from "./lyricParser";
 
 // 简单解析 lrc 后得到的类型
 
@@ -12,24 +12,6 @@ type LrcMetadata = Record<string, string>;
 // 一些抄过来的正则表达式，我正则全然苦手
 
 const META_TAG_REGEX = /^\[([a-zA-Z][a-zA-Z0-9]*?):(.+)]$/;
-const SQUARE_TIME_TAG_REGEX = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d+))?]/;
-const ANGLE_TIME_TAG_REGEX = /<(\d{1,3}):(\d{1,2})(?:[.:](\d+))?>/;
-
-/**
- * 解析时间戳为毫秒
- * 使用字符串补齐处理，避免浮点数计算误差
- */
-const parseTimeToMs = (min: string, sec: string, ms: string | undefined): number => {
-  const minutes = parseInt(min, 10);
-  const seconds = parseInt(sec, 10);
-  let milliseconds = 0;
-  // 补齐到 3 位 (例如 "5" -> "500", "05" -> "050", "1234" -> "123")
-  if (ms) {
-    const msNormalized = ms.padEnd(3, "0").slice(0, 3);
-    milliseconds = parseInt(msNormalized, 10);
-  }
-  return minutes * 60 * 1000 + seconds * 1000 + milliseconds;
-};
 
 /**
  * 获取时间标签括号信息
@@ -38,21 +20,97 @@ const parseTimeToMs = (min: string, sec: string, ms: string | undefined): number
  */
 const getTimeTagBrackets = (
   char: string,
-): { brackets: "square" | "angle"; close: string; regex: RegExp } | null => {
+): { brackets: "square" | "angle"; close: string } | null => {
   switch (char) {
     case "[":
-      return { brackets: "square", close: "]", regex: SQUARE_TIME_TAG_REGEX };
+      return { brackets: "square", close: "]" };
     case "<":
-      return { brackets: "angle", close: ">", regex: ANGLE_TIME_TAG_REGEX };
+      return { brackets: "angle", close: ">" };
     default:
       return null;
   }
 };
 
 /**
- * 简单解析 lrcLine 为 SimpleParsedLrcLine，并将元数据存入 metadata 对象
+ * 解析时间标签为毫秒
+ * @param line 原始行
+ * @param startIndex 标签起始索引
+ * @param close 标签闭合符号
  */
-const parseSimpleLrcLine = (lrcLine: string, metadata?: LrcMetadata): LrcSegment[] => {
+const parseTimeTagAt = (
+  line: string,
+  startIndex: number,
+  close: string,
+): { time: number; endIndex: number } | null => {
+  let i = startIndex + 1;
+
+  // 解析分（最多允许 3 位数）
+  let minutes = 0;
+  let minutesDigits = 0;
+  while (i < line.length && minutesDigits < 3) {
+    const code = line.charCodeAt(i);
+    if (code < 48 || code > 57) break;
+    minutes = minutes * 10 + (code - 48);
+    minutesDigits++;
+    i++;
+  }
+  if (minutesDigits === 0 || line[i] !== ":") return null;
+  i++;
+
+  // 解析秒（最多允许 2 位数）
+  let seconds = 0;
+  let secondsDigits = 0;
+  while (i < line.length && secondsDigits < 2) {
+    const code = line.charCodeAt(i);
+    if (code < 48 || code > 57) break;
+    seconds = seconds * 10 + (code - 48);
+    secondsDigits++;
+    i++;
+  }
+  if (secondsDigits === 0 || seconds > 60) return null;
+
+  // 解析毫秒（可选）
+  let milliseconds = 0;
+  let msDigits = 0;
+  if (line[i] === "." || line[i] === ":") {
+    i++;
+    while (i < line.length) {
+      const code = line.charCodeAt(i);
+      if (code < 48 || code > 57) break;
+      // 精确到 3 位数（毫秒），后面直接丢弃
+      if (msDigits < 3) {
+        milliseconds = milliseconds * 10 + (code - 48);
+        msDigits++;
+      }
+      i++;
+    }
+    switch (msDigits) {
+      case 0:
+        // 存在 "." 或 ":" 但没有数字
+        return null;
+      case 1:
+        milliseconds *= 100;
+        break;
+      case 2:
+        milliseconds *= 10;
+        break;
+      // case 3 无需处理（已经是三位数的毫秒单位），4 位及以上会被直接丢弃
+    }
+  }
+
+  // 标签必须以闭合符号结尾
+  if (line[i] !== close) return null;
+
+  return {
+    time: minutes * 60 * 1000 + seconds * 1000 + milliseconds,
+    endIndex: i,
+  };
+};
+
+/**
+ * 简单解析 lrcLine 为 LrcSegment，并将元数据存入 metadata 对象
+ */
+const parseLrcLineToSegment = (lrcLine: string, metadata?: LrcMetadata): LrcSegment[] => {
   lrcLine = lrcLine.trim();
   if (!lrcLine) return [];
 
@@ -75,75 +133,68 @@ const parseSimpleLrcLine = (lrcLine: string, metadata?: LrcMetadata): LrcSegment
   }
 
   // 解析歌词行
-  const parsedWords: LrcSegment[] = [];
-  let parsedIndex = 0;
-  let pointerIndex = 0;
+  const segments: LrcSegment[] = [];
+  let textStartIndex = 0;
+  let cursorIndex = 0;
 
   while (true) {
-    const pointerChar = lrcLine[pointerIndex];
+    // 获取当前指针字符
+    const cursorChar = lrcLine[cursorIndex];
 
     // 尝试寻找标签
-    const bracketsInfo = getTimeTagBrackets(pointerChar);
+    const bracketsInfo = getTimeTagBrackets(cursorChar);
     if (bracketsInfo) {
-      const { brackets, close, regex } = bracketsInfo;
+      const { brackets, close } = bracketsInfo;
+      const startBracketIndex = cursorIndex;
+      const parsed = parseTimeTagAt(lrcLine, startBracketIndex, close);
 
-      const startBracketIndex = pointerIndex;
-      const endBracketIndex = lrcLine.indexOf(close, startBracketIndex);
-
-      if (endBracketIndex === -1) {
-        // 没有找到闭合符号，继续往下找
-        pointerIndex++;
-        continue;
-      }
-
-      const timeTag = lrcLine.substring(startBracketIndex, endBracketIndex + 1);
-      const match = regex.exec(timeTag);
-
-      if (match === null) {
+      if (!parsed) {
         // 不是合法的时间标签，继续往下找
-        pointerIndex++;
+        cursorIndex++;
         continue;
       }
 
       // 将标签前的文本加入结果
-      if (startBracketIndex > parsedIndex) {
-        parsedWords.push({
+      if (startBracketIndex > textStartIndex) {
+        segments.push({
           type: "text",
-          content: lrcLine.substring(parsedIndex, startBracketIndex),
+          content: lrcLine.substring(textStartIndex, startBracketIndex),
         });
       }
       // 将时间标签加入结果
-      parsedWords.push({
+      segments.push({
         type: "time",
         brackets,
-        timestamp: parseTimeToMs(match[1], match[2], match[3]),
+        timestamp: parsed.time,
       });
-      pointerIndex = endBracketIndex;
-      parsedIndex = pointerIndex + 1;
+      // 更新指针位置和文本起始位置
+      cursorIndex = parsed.endIndex;
+      textStartIndex = cursorIndex + 1;
     }
 
     // 行末尾
-    if (pointerIndex >= lrcLine.length) {
-      if (pointerIndex > parsedIndex) {
+    if (cursorIndex >= lrcLine.length) {
+      if (cursorIndex > textStartIndex) {
         // 将最后剩余的文本加入结果
-        parsedWords.push({
+        segments.push({
           type: "text",
-          content: lrcLine.substring(parsedIndex),
+          content: lrcLine.substring(textStartIndex),
         });
       }
       break;
     }
+
     // 继续往下找
-    pointerIndex++;
+    cursorIndex++;
   }
 
-  return parsedWords;
+  return segments;
 };
 
 /**
  * 将前面简单解析过的 LrcSegment[] 转换为 LyricLine
  */
-const parseLrcLine = (simpleLine: LrcSegment[]): LyricLine | null => {
+const parseLrcSegmentToLyricLine = (simpleLine: LrcSegment[]): LyricLine | null => {
   if (simpleLine.length === 0) {
     console.warn("无法解析空行");
     return null;
@@ -161,53 +212,53 @@ const parseLrcLine = (simpleLine: LrcSegment[]): LyricLine | null => {
   let lineEndTime = Infinity;
 
   const words: LyricWord[] = [];
-  let tempTime = lineStartTime;
-  let tempString = "";
+  let currentTime = lineStartTime;
+  let currentText = "";
 
   // 遍历行内元素
-  for (const word of simpleLine) {
-    switch (word.type) {
+  for (const segment of simpleLine) {
+    switch (segment.type) {
       case "text": {
-        tempString += word.content;
+        currentText += segment.content;
         break;
       }
       case "time": {
-        const tempEnd = word.timestamp;
-        if (tempString)
+        const wordEndTime = segment.timestamp;
+        if (currentText)
           words.push({
-            startTime: tempTime,
-            endTime: tempEnd,
-            word: tempString,
+            word: currentText,
+            startTime: currentTime,
+            endTime: wordEndTime,
 
             romanWord: "",
           });
-        tempTime = tempEnd;
-        tempString = "";
+        currentTime = wordEndTime;
+        currentText = "";
         break;
       }
     }
   }
   // 行结尾无文本，说明最后一个 word 是时间标签：设置行结束时间
-  if (!tempString) {
-    lineEndTime = tempTime;
+  if (!currentText) {
+    lineEndTime = currentTime;
   }
   // 行结尾有文本，说明最后一个 word 是文本：将文本推入数组中
   // 此处只有单行的信息，无法确定行尾 word 和此行的 EndTime
   // 先设置为 Infinity (初始值)，下面 parseLrcLines 会将其更新为下一行的开始时间
-  if (tempString) {
+  if (currentText) {
     words.push({
-      startTime: tempTime,
+      word: currentText,
+      startTime: currentTime,
       endTime: lineEndTime,
-      word: tempString,
 
       romanWord: "",
     });
   }
 
   return {
+    words: words,
     startTime: lineStartTime,
     endTime: lineEndTime,
-    words: words,
 
     translatedLyric: "",
     romanLyric: "",
@@ -241,17 +292,16 @@ const applyOffset = (lrcLines: LrcSegment[][], offset: number) => {
 /**
  * 解析 lrc 内容为 LyricLine 数组
  *
- * 会将 lrcContent 按行分割，
- * 先进行简单解析得到 string 和时间标签的混合数组，
+ * 会将 lrcContent 按行分割，先进行简单解析得到 LrcSegment，
  * 再将每行的混合数组转换为 LyricLine，
  * 最后为没有明确结束时间的行设置结束时间为下一行的开始时间
  */
-const parseLrcLines = (lrcContent: string): LyricLine[] => {
+export const parseWordLrcRaw = (lrcContent: string): LyricLine[] => {
   const metadata: LrcMetadata = {};
   const simpleLines = lrcContent
     .split(/\r?\n/)
-    .filter((line) => line.length > 0)
-    .map((line) => parseSimpleLrcLine(line, metadata));
+    .map((line) => parseLrcLineToSegment(line, metadata))
+    .filter((line) => line.length > 0);
 
   const metadataOffset = parseInt(metadata.offset ?? "0", 10);
   if (metadataOffset) applyOffset(simpleLines, metadataOffset);
@@ -260,25 +310,25 @@ const parseLrcLines = (lrcContent: string): LyricLine[] => {
 
   // 维护一个数组，存储之前行缺失结束时间的行
   // 这些行开始时间相同，且必定是正在处理的行的前面几行
-  let missingEndTimeLines: LyricLine[] = [];
+  let pendingEndLines: LyricLine[] = [];
 
   for (const simpleLine of simpleLines) {
-    const line = parseLrcLine(simpleLine);
+    const line = parseLrcSegmentToLyricLine(simpleLine);
     if (!line) continue;
 
     // 尝试填充之前行缺失的结束时间
-    if (missingEndTimeLines.length && missingEndTimeLines[0].startTime < line.startTime) {
+    if (pendingEndLines.length && pendingEndLines[0].startTime < line.startTime) {
       // 之前有行缺失结束时间，且开始时间早于当前行，说明之前的行结束了
       // 更新结束时间为当前行开始时间并清空数组
-      for (const missingEndTimeLine of missingEndTimeLines) {
-        missingEndTimeLine.endTime = line.startTime;
+      for (const pendingLine of pendingEndLines) {
+        pendingLine.endTime = line.startTime;
 
-        const lastWordInMissingLine = missingEndTimeLine.words[missingEndTimeLine.words.length - 1];
-        if (lastWordInMissingLine.endTime === Infinity) {
-          lastWordInMissingLine.endTime = line.startTime;
+        const lastWordInPendingLine = pendingLine.words[pendingLine.words.length - 1];
+        if (lastWordInPendingLine.endTime === Infinity) {
+          lastWordInPendingLine.endTime = line.startTime;
         }
       }
-      missingEndTimeLines = [];
+      pendingEndLines = [];
     }
 
     // 如果行内没有歌词文本，则跳过该行（空白行仍可参与前面的填充结束时间）
@@ -286,10 +336,10 @@ const parseLrcLines = (lrcContent: string): LyricLine[] => {
 
     // 该行没有明确的结束时间
     if (line.endTime === Infinity) {
-      if (missingEndTimeLines.length && missingEndTimeLines[0].startTime === line.startTime) {
-        missingEndTimeLines.push(line);
+      if (pendingEndLines.length && pendingEndLines[0].startTime === line.startTime) {
+        pendingEndLines.push(line);
       } else {
-        missingEndTimeLines = [line];
+        pendingEndLines = [line];
       }
     }
 
@@ -305,12 +355,12 @@ const parseLrcLines = (lrcContent: string): LyricLine[] => {
  * 调用了 parseLrcLines，并对齐了歌词的翻译和音译
  *
  * @param lrcContent lrc 原始内容
- * @see parseLrcLines
+ * @see parseWordLrcRaw
  */
 export const parseWordLrc = (lrcContent: string): LyricLine[] => {
-  const parsed = parseLrcLines(lrcContent);
+  const parsed = parseWordLrcRaw(lrcContent);
 
-  const aligned = alignLyricLines(converted, { skipSort: true });
+  const aligned = alignLyricLines(parsed, { skipSort: true });
 
   return aligned;
 };
