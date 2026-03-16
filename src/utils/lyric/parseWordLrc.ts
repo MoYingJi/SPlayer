@@ -13,19 +13,22 @@ type LrcMetadata = Record<string, string>;
 
 const META_TAG_REGEX = /^\[([a-zA-Z][a-zA-Z0-9]*?):(.+)]$/;
 
+const SQUARE_TIME_TAG_REGEX = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d+))?]/y;
+const ANGLE_TIME_TAG_REGEX = /<(\d{1,3}):(\d{1,2})(?:[.:](\d+))?>/y;
+
 /**
  * 获取时间标签括号信息
  * @param char 当前字符
- * @returns 括号类型与闭合符号；非括号返回 null
+ * @returns 括号类型与对应的正则；非括号返回 null
  */
 const getTimeTagBrackets = (
   char: string,
-): { brackets: "square" | "angle"; close: string } | null => {
+): { brackets: "square" | "angle"; regex: RegExp } | null => {
   switch (char) {
     case "[":
-      return { brackets: "square", close: "]" };
+      return { brackets: "square", regex: SQUARE_TIME_TAG_REGEX };
     case "<":
-      return { brackets: "angle", close: ">" };
+      return { brackets: "angle", regex: ANGLE_TIME_TAG_REGEX };
     default:
       return null;
   }
@@ -35,76 +38,27 @@ const getTimeTagBrackets = (
  * 解析时间标签为毫秒
  * @param line 原始行
  * @param startIndex 标签起始索引
- * @param close 标签闭合符号
+ * @param regex 正则表达式（粘性匹配）
  * @returns timestamp 为毫秒，endIndex 为标签闭合符号索引；解析失败返回 null
  */
 const parseTimeTagAt = (
   line: string,
   startIndex: number,
-  close: string,
+  regex: RegExp,
 ): { timestamp: number; endIndex: number } | null => {
-  let i = startIndex + 1;
+  regex.lastIndex = startIndex;
+  const match = regex.exec(line);
+  if (!match) return null;
 
-  // 解析分（最多允许 3 位数）
-  let minutes = 0;
-  let minutesDigits = 0;
-  while (i < line.length && minutesDigits < 3) {
-    const code = line.charCodeAt(i);
-    if (code < 48 || code > 57) break;
-    minutes = minutes * 10 + (code - 48);
-    minutesDigits++;
-    i++;
-  }
-  if (minutesDigits === 0 || line[i] !== ":") return null;
-  i++;
+  const minutes = parseInt(match[1], 10);
+  const seconds = parseInt(match[2], 10);
+  const milliseconds = match[3] ? parseInt(match[3].padEnd(3, "0").slice(0, 3), 10) : 0;
 
-  // 解析秒（最多允许 2 位数）
-  let seconds = 0;
-  let secondsDigits = 0;
-  while (i < line.length && secondsDigits < 2) {
-    const code = line.charCodeAt(i);
-    if (code < 48 || code > 57) break;
-    seconds = seconds * 10 + (code - 48);
-    secondsDigits++;
-    i++;
-  }
-  if (secondsDigits === 0 || seconds > 60) return null;
-
-  // 解析毫秒（可选）
-  let milliseconds = 0;
-  let msDigits = 0;
-  if (line[i] === "." || line[i] === ":") {
-    i++;
-    while (i < line.length) {
-      const code = line.charCodeAt(i);
-      if (code < 48 || code > 57) break;
-      // 精确到 3 位数（毫秒），后面直接丢弃
-      if (msDigits < 3) {
-        milliseconds = milliseconds * 10 + (code - 48);
-        msDigits++;
-      }
-      i++;
-    }
-    switch (msDigits) {
-      case 0:
-        // 存在 "." 或 ":" 但没有数字
-        return null;
-      case 1:
-        milliseconds *= 100;
-        break;
-      case 2:
-        milliseconds *= 10;
-        break;
-      // case 3 无需处理（已经是三位数的毫秒单位），4 位及以上会被直接丢弃
-    }
-  }
-
-  // 标签必须以闭合符号结尾
-  if (line[i] !== close) return null;
+  if (seconds > 60) return null;
 
   return {
     timestamp: minutes * 60 * 1000 + seconds * 1000 + milliseconds,
-    endIndex: i,
+    endIndex: regex.lastIndex - 1,
   };
 };
 
@@ -145,9 +99,9 @@ const parseLrcLineToSegment = (lrcLine: string, metadata?: LrcMetadata): LrcSegm
     // 尝试寻找标签
     const bracketsInfo = getTimeTagBrackets(cursorChar);
     if (bracketsInfo) {
-      const { brackets, close } = bracketsInfo;
+      const { brackets, regex } = bracketsInfo;
       const startBracketIndex = cursorIndex;
-      const parsed = parseTimeTagAt(lrcLine, startBracketIndex, close);
+      const parsed = parseTimeTagAt(lrcLine, startBracketIndex, regex);
 
       if (!parsed) {
         // 不是合法的时间标签，继续往下找
