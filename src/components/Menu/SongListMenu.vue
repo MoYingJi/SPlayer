@@ -2,7 +2,7 @@
   <n-dropdown
     :x="dropdownX"
     :y="dropdownY"
-    :show="dropdownShow"
+    v-model:show="dropdownShow"
     :options="dropdownOptions"
     class="song-list-menu"
     placement="bottom-start"
@@ -42,6 +42,10 @@ const openDropdown = (
 ) => {
   try {
     e.preventDefault();
+    // 如果菜单已经打开，则不打开新的菜单，避免重复打开
+    if (dropdownShow.value) {
+      return;
+    }
     dropdownShow.value = false;
     // 当前歌曲信息
     const songData = getPlayerInfoObj(song);
