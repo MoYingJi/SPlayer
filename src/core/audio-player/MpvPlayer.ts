@@ -45,6 +45,27 @@ export class MpvPlayer extends EventTarget implements IPlaybackEngine {
   /** 是否已初始化 IPC 监听 */
   private isInitialized: boolean = false;
 
+  // mpv 在 seek 时，会触发 seek 事件，然后将 time-pos 更新到目标位置
+  // seek 完成后触发 playback-restart，time-pos 更新到当前 mpv 的真实位置
+  // 但 mpv 在 seek 后的真实位置可能会比目标位置更靠前，因此事件像是：
+  // - seek x -> time-pos x -> playback-restart -> time-pos x-ε
+  // 这会导致在点击歌词进行进度跳转时，歌词 UI 跳转到目标行后，会闪回上一行一瞬间
+  // 下面的 seekStatus 和 seekTargetSeconds 就是为了解决这个问题
+  //   | event            | seekStatus           | seekTargetSeconds |
+  //   | ---------------- | -------------------- | ----------------  |
+  //   | seek x           | normal -> seeking    | null -> x         |
+  //   | time-pos x       | seeking              | x                 |
+  //   | playback-restart | seeking -> targeting | x                 |
+  //   | time-pos x-ε     | targeting            | x                 | // 可能存在的闪回问题
+  //   | time-pos x+      | targeting -> normal  | x -> null         |
+  // 通过这个状态机，UI 在 seeking 和 targeting 状态下都不会更新 currentTime
+  // 直到 mpv 真正跳转到目标位置或更靠后的位置，才恢复正常更新 currentTime，从而避免了闪回问题
+
+  /** 当前 seek 状态 */
+  private seekStatus: "normal" | "seeking" | "targeting" = "normal";
+  /** 目标 seek 位置（秒） */
+  private seekTargetSeconds: number | null = null;
+
   constructor() {
     super();
   }
@@ -77,6 +98,18 @@ export class MpvPlayer extends EventTarget implements IPlaybackEngine {
         switch (name) {
           case "time-pos":
             if (typeof value === "number") {
+              if (this.seekStatus === "seeking") {
+                break; // 等待 seek，暂不更新 currentTime
+              }
+              if (this.seekStatus === "targeting") {
+                if (this.seekTargetSeconds !== null && value < this.seekTargetSeconds) {
+                  break; // 继续等待目标位置
+                } else {
+                  // 恢复正常更新
+                  this.seekStatus = "normal";
+                  this.seekTargetSeconds = null;
+                }
+              }
               this._currentTime = value;
               this.dispatchEvent(new Event(MPV_EVENTS.TIME_UPDATE));
             }
@@ -131,6 +164,12 @@ export class MpvPlayer extends EventTarget implements IPlaybackEngine {
     // 播放重启（真正开始播放）
     window.electron.ipcRenderer.on("mpv-playback-restart", () => {
       this.playbackStarted = true;
+
+      if (this.seekStatus === "seeking") {
+        this.seekStatus = "targeting";
+        // 由 seek 造成的 playback-restart 不改变播放状态，直接返回
+        return;
+      }
 
       // 决定最终状态
       if (this.forcePaused || this.autoPlayPending === false) {
@@ -240,6 +279,8 @@ export class MpvPlayer extends EventTarget implements IPlaybackEngine {
   }
 
   public seek(time: number): void {
+    this.seekTargetSeconds = time;
+    this.seekStatus = "seeking";
     window.electron.ipcRenderer.send("mpv-seek", time);
   }
 
