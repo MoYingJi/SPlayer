@@ -1,5 +1,11 @@
 <template>
-  <div class="full-player-mobile" ref="mobileStart">
+  <div
+    class="full-player-mobile"
+    ref="mobileStart"
+    @touchstart.capture="onTouchStart"
+    @touchmove.capture="onTouchMove"
+    @touchend.capture="onTouchEnd"
+  >
     <!-- 顶部功能栏 -->
     <div class="top-bar">
       <!-- 收起按钮 -->
@@ -10,7 +16,7 @@
 
     <!-- 主内容 -->
     <div
-      :class="['mobile-content', { swiping: isSwiping }]"
+      :class="['mobile-content', { swiping: isSwipingX }]"
       :style="{ transform: contentTransform }"
       @click.stop
     >
@@ -159,7 +165,7 @@
     <div
       v-if="hasLyric"
       class="lyric-overlay"
-      :class="{ swiping: isSwiping }"
+      :class="{ swiping: isSwipingX }"
       :style="{ transform: lyricPageTransform }"
     >
       <PlayerLyric />
@@ -178,7 +184,6 @@
 </template>
 
 <script setup lang="ts">
-import { useSwipe } from "@vueuse/core";
 import { useMusicStore, useStatusStore, useDataStore, useSettingStore } from "@/stores";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { useTimeFormat } from "@/composables/useTimeFormat";
@@ -215,34 +220,80 @@ watch(hasLyric, (val) => {
 
 // 滑动偏移量
 const swipeOffset = ref(0);
+// 轴锁定：null=未确定, 'x'=水平翻页, 'y'=纵向滚动
+const axisLock = ref<"x" | "y" | null>(null);
+const isSwiping = ref(false);
+const lengthX = ref(0);
 
-const { direction, isSwiping, lengthX } = useSwipe(mobileStart, {
-  threshold: 10,
-  onSwipe: () => {
-    if (!hasLyric.value) return;
-    // 为正表示向左滑，为负表示向右滑
-    swipeOffset.value = lengthX.value;
-  },
-  onSwipeEnd: () => {
-    if (!hasLyric.value) {
-      swipeOffset.value = 0;
-      return;
+let startX = 0;
+let startY = 0;
+
+const onTouchStart = (e: TouchEvent) => {
+  if (!hasLyric.value) return;
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
+  axisLock.value = null;
+  isSwiping.value = true;
+  lengthX.value = 0;
+};
+
+const onTouchMove = (e: TouchEvent) => {
+  if (!hasLyric.value || !isSwiping.value) return;
+
+  const currentX = e.touches[0].clientX;
+  const currentY = e.touches[0].clientY;
+  const deltaX = startX - currentX; // 左滑为正，符合 lengthX 语义
+  const deltaY = startY - currentY;
+
+  if (axisLock.value === null) {
+    if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+      axisLock.value = Math.abs(deltaX) >= Math.abs(deltaY) ? "x" : "y";
+      // 确认是水平滑动时，在捕获阶段下发 touchcancel 终止子组件(如AMLL)内部的滑动状态
+      if (axisLock.value === "x" && e.target instanceof EventTarget) {
+        e.target.dispatchEvent(new TouchEvent("touchcancel", { bubbles: true, cancelable: true }));
+      }
     }
+  }
+
+  if (axisLock.value === "x") {
+    // 拦截后续的 touchmove 事件，避免歌词收到滑动导致滚动
+    e.preventDefault();
+    e.stopPropagation();
+    lengthX.value = deltaX;
+    swipeOffset.value = lengthX.value;
+  }
+};
+
+const onTouchEnd = (e: TouchEvent) => {
+  if (!hasLyric.value || !isSwiping.value) return;
+  isSwiping.value = false;
+
+  if (axisLock.value === "x") {
+    e.stopPropagation(); // 防止拦截事件造成点击误触
+    const finalLengthX = startX - e.changedTouches[0].clientX;
+    const direction = finalLengthX > 0 ? "left" : "right";
+
     // 超过阈值则切换页面
-    if (direction.value === "left" && lengthX.value > 100) {
+    if (direction === "left" && finalLengthX > 100) {
       pageIndex.value = 1;
-    } else if (direction.value === "right" && lengthX.value < -100) {
+    } else if (direction === "right" && finalLengthX < -100) {
       pageIndex.value = 0;
     }
-    swipeOffset.value = 0;
-  },
-});
+  }
+  
+  swipeOffset.value = 0;
+  axisLock.value = null;
+  lengthX.value = 0;
+};
+
+// 仅水平轴锁定时才视为正在水平滑动
+const isSwipingX = computed(() => isSwiping.value && axisLock.value === "x");
 
 // 计算歌词覆盖层的位移（与 mobile-content 内歌词页视觉同步，但在 stacking context 之外）
 const lyricPageTransform = computed(() => {
   // pageIndex=0 时覆盖层在屏幕右侧，pageIndex=1 时回到屏幕内
   const baseOffset = (1 - pageIndex.value) * 100;
-  if (!isSwiping.value || !hasLyric.value) {
+  if (!isSwipingX.value || !hasLyric.value) {
     return `translateX(${baseOffset}%)`;
   }
   let pixelOffset = lengthX.value;
@@ -258,7 +309,7 @@ const lyricPageTransform = computed(() => {
 // 计算实时的变换位置
 const contentTransform = computed(() => {
   const baseOffset = pageIndex.value * 50; // 百分比
-  if (!isSwiping.value || !hasLyric.value) {
+  if (!isSwipingX.value || !hasLyric.value) {
     return `translateX(-${baseOffset}%)`;
   }
   let pixelOffset = lengthX.value;
