@@ -151,10 +151,18 @@
             />
           </div>
         </div>
-        <div class="lyric-main">
-          <PlayerLyric />
-        </div>
+        <div class="lyric-main" />
       </div>
+    </div>
+
+    <!-- 独立歌词覆盖层（提取到 mobile-content 之外以避免 transform stacking context 阻断 mix-blend-mode） -->
+    <div
+      v-if="hasLyric"
+      class="lyric-overlay"
+      :class="{ swiping: isSwiping }"
+      :style="{ transform: lyricPageTransform }"
+    >
+      <PlayerLyric />
     </div>
 
     <!-- 页面指示器 -->
@@ -228,6 +236,23 @@ const { direction, isSwiping, lengthX } = useSwipe(mobileStart, {
     }
     swipeOffset.value = 0;
   },
+});
+
+// 计算歌词覆盖层的位移（与 mobile-content 内歌词页视觉同步，但在 stacking context 之外）
+const lyricPageTransform = computed(() => {
+  // pageIndex=0 时覆盖层在屏幕右侧，pageIndex=1 时回到屏幕内
+  const baseOffset = (1 - pageIndex.value) * 100;
+  if (!isSwiping.value || !hasLyric.value) {
+    return `translateX(${baseOffset}%)`;
+  }
+  let pixelOffset = lengthX.value;
+  if (pageIndex.value === 0 && pixelOffset < 0) {
+    pixelOffset = pixelOffset * 0.3;
+  }
+  if (pageIndex.value === 1 && pixelOffset > 0) {
+    pixelOffset = pixelOffset * 0.3;
+  }
+  return `translateX(calc(${baseOffset}% - ${pixelOffset}px))`;
 });
 
 // 计算实时的变换位置
@@ -534,6 +559,22 @@ const contentTransform = computed(() => {
         min-height: 0;
         position: relative;
       }
+    }
+  }
+  // 歌词覆盖层：提取到 mobile-content 之外，使 mix-blend-mode 能与实际模糊背景混合
+  .lyric-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    // 顶部留出 lyric-page padding-top(60px) + lyric-header 高度(约 80px)
+    padding: 140px 24px 0;
+    box-sizing: border-box;
+    mix-blend-mode: var(--lyric-blend-mode);
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    &.swiping {
+      transition: none;
     }
   }
   .pagination {
