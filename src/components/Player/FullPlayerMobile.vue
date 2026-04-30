@@ -1,7 +1,6 @@
 <template>
   <div
     class="full-player-mobile"
-    ref="mobileStart"
     @touchstart.capture="onTouchStart"
     @touchmove.capture="onTouchMove"
     @touchend.capture="onTouchEnd"
@@ -130,7 +129,7 @@
 
       <!-- 歌词页 -->
       <div class="page lyric-page">
-        <div class="lyric-header">
+        <div class="lyric-header" ref="lyricHeaderRef">
           <s-image :src="musicStore.getSongCover('s')" class="lyric-cover" />
           <div class="lyric-info">
             <div class="name text-hidden">
@@ -166,7 +165,7 @@
       v-if="hasLyric"
       class="lyric-overlay"
       :class="{ swiping: isSwipingX }"
-      :style="{ transform: lyricPageTransform }"
+      :style="{ transform: lyricPageTransform, paddingTop: lyricOverlayPaddingTop }"
     >
       <PlayerLyric />
     </div>
@@ -184,6 +183,7 @@
 </template>
 
 <script setup lang="ts">
+import { useElementSize } from "@vueuse/core";
 import { useMusicStore, useStatusStore, useDataStore, useSettingStore } from "@/stores";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { useTimeFormat } from "@/composables/useTimeFormat";
@@ -198,7 +198,6 @@ const dataStore = useDataStore();
 const player = usePlayerController();
 const { timeDisplay, toggleTimeFormat } = useTimeFormat();
 
-const mobileStart = ref<HTMLElement | null>(null);
 const pageIndex = ref(0);
 
 const hasLyric = computed(() => {
@@ -218,8 +217,14 @@ watch(hasLyric, (val) => {
   if (!val) pageIndex.value = 0;
 });
 
-// 滑动偏移量
-const swipeOffset = ref(0);
+// 动态计算歌词覆盖层高度以对齐
+const lyricHeaderRef = ref<HTMLElement | null>(null);
+const { height: lyricHeaderHeight } = useElementSize(lyricHeaderRef);
+const lyricOverlayPaddingTop = computed(() => {
+  // 60px (lyric-page padding-top) + header height + 20px (margin-bottom)
+  return lyricHeaderHeight.value ? `${60 + lyricHeaderHeight.value + 20}px` : "140px";
+});
+
 // 轴锁定：null=未确定, 'x'=水平翻页, 'y'=纵向滚动
 const axisLock = ref<"x" | "y" | null>(null);
 const isSwiping = ref(false);
@@ -250,7 +255,16 @@ const onTouchMove = (e: TouchEvent) => {
       axisLock.value = Math.abs(deltaX) >= Math.abs(deltaY) ? "x" : "y";
       // 确认是水平滑动时，在捕获阶段下发 touchcancel 终止子组件(如AMLL)内部的滑动状态
       if (axisLock.value === "x" && e.target instanceof EventTarget) {
-        e.target.dispatchEvent(new TouchEvent("touchcancel", { bubbles: true, cancelable: true }));
+        const touchList = e.touches;
+        e.target.dispatchEvent(
+          new TouchEvent("touchcancel", {
+            bubbles: true,
+            cancelable: true,
+            touches: Array.from(touchList),
+            targetTouches: Array.from(e.targetTouches),
+            changedTouches: Array.from(e.changedTouches),
+          }),
+        );
       }
     }
   }
@@ -260,7 +274,6 @@ const onTouchMove = (e: TouchEvent) => {
     e.preventDefault();
     e.stopPropagation();
     lengthX.value = deltaX;
-    swipeOffset.value = lengthX.value;
   }
 };
 
@@ -269,7 +282,8 @@ const onTouchEnd = (e: TouchEvent) => {
   isSwiping.value = false;
 
   if (axisLock.value === "x") {
-    e.stopPropagation(); // 防止拦截事件造成点击误触
+    // 防止拦截事件造成点击误触
+    e.preventDefault();
     const finalLengthX = startX - e.changedTouches[0].clientX;
     const direction = finalLengthX > 0 ? "left" : "right";
 
@@ -280,8 +294,7 @@ const onTouchEnd = (e: TouchEvent) => {
       pageIndex.value = 0;
     }
   }
-  
-  swipeOffset.value = 0;
+
   axisLock.value = null;
   lengthX.value = 0;
 };
@@ -619,8 +632,7 @@ const contentTransform = computed(() => {
     left: 0;
     width: 100%;
     height: 100%;
-    // 顶部留出 lyric-page padding-top(60px) + lyric-header 高度(约 80px)
-    padding: 140px 24px 0;
+    padding: 0 24px;
     box-sizing: border-box;
     mix-blend-mode: var(--lyric-blend-mode);
     transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
