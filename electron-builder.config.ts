@@ -57,7 +57,8 @@ const config: Configuration = {
       // 安装版
       {
         target: "nsis",
-        arch: ["x64", "arm64"],
+        // arch: ["x64", "arm64"],
+        arch: ["x64"],
       },
       // 打包版
       // {
@@ -157,7 +158,8 @@ const config: Configuration = {
       // Pacman 包管理器
       {
         target: "pacman",
-        arch: ["x64", "arm64"],
+        // arch: ["x64", "arm64"],
+        arch: ["x64"],
       },
       // AppImage 格式
       // {
