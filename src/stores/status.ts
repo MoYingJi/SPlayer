@@ -82,6 +82,8 @@ interface StatusState {
   duration: number;
   /** 实时播放进度 */
   progress: number;
+  /** 歌词 seek 事件序号 */
+  lyricSeekVersion: number;
   /** 每首歌曲的进度偏移（按歌曲 id 记忆） */
   currentTimeOffsetMap: Record<number, number>;
   /** 主内容高度 */
@@ -184,6 +186,7 @@ export const useStatusStore = defineStore("status", {
     currentTime: 0,
     duration: 0,
     progress: 0,
+    lyricSeekVersion: 0,
     currentTimeOffsetMap: {},
     songCoverTheme: {},
     pureLyricMode: false,
@@ -364,6 +367,10 @@ export const useStatusStore = defineStore("status", {
       if (this.currentTimeOffsetMap && songId in this.currentTimeOffsetMap) {
         delete this.currentTimeOffsetMap[songId];
       }
+    },
+    /** 标记一次歌词 seek 事件 */
+    markLyricSeek() {
+      this.lyricSeekVersion += 1;
     },
     /**
      * 切换循环模式

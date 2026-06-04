@@ -4,3 +4,23 @@ packages:
   - "native/ferrous-opencc-wasm"
   - "native/taskbar-lyric"
   - "native/tools"
+
+overrides:
+  dmg-builder: 26.0.12
+  electron-builder-squirrel-windows: 26.0.12
+
+onlyBuiltDependencies:
+  - "@applemusic-like-lyrics/core"
+  - "@applemusic-like-lyrics/lyric"
+  - "@parcel/watcher"
+  - "better-sqlite3"
+  - "core-js"
+  - "electron"
+  - "electron-winstaller"
+  - "esbuild"
+  - "sharp"
+  - "vue-demi"
+
+ignoredBuiltDependencies:
+  - "register-scheme"
+  - "wasm-pack"

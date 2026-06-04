@@ -106,6 +106,22 @@ const props = defineProps({
     default: 0,
   },
   /**
+   * 本次 seek 的目标时间，单位毫秒
+   * 仅在 seekVersion 变化时使用，保证 isSeek 对应的是 seek 之后的时间
+   */
+  seekTime: {
+    type: Number,
+    default: 0,
+  },
+  /**
+   * 外部 seek 事件序号
+   * 每次发生 seek 时递增一次，用于将下一次 currentTime 更新标记为 isSeek
+   */
+  seekVersion: {
+    type: Number,
+    default: 0,
+  },
+  /**
    * 设置文字动画的渐变宽度，单位以歌词行的主文字字体大小的倍数为单位，默认为 0.5，即一个全角字符的一半宽度
    *
    * 如果要模拟 Apple Music for Android 的效果，可以设置为 1
@@ -175,7 +191,7 @@ export interface LyricPlayerRef {
   /**
    * 获取当前 Player 内部使用的歌词行元素
    */
-  get currentLyricLineObjects(): LyricLineObject[] | undefined;
+  get currentLyricLineObjects(): LyricLineGroup[] | undefined;
 }
 
 /**
@@ -183,7 +199,7 @@ export interface LyricPlayerRef {
  *
  * 用来进行一些神秘的 Hook（如根据歌词行内容设置语言属性）
  */
-interface LyricLineObject {
+interface LyricLineGroup {
   /**
    * 歌词行
    */
@@ -198,6 +214,10 @@ interface LyricLineObject {
 const wrapperRef = useTemplateRef<HTMLDivElement>("wrapper-ref");
 // 歌词播放实例
 const playerRef = ref<CoreLyricPlayer>();
+// 已处理的 seek 版本号
+const handledSeekVersion = ref(0);
+// 需要忽略的一次普通时间同步
+const ignoredSeekTime = ref<number | null>(null);
 
 // 事件处理器
 const lineClickHandler = (e: Event) => emit("lineClick", e as LyricLineMouseEvent);
@@ -299,9 +319,38 @@ watchEffect(() => {
 });
 
 // 当前播放时间
-watchEffect(() => {
-  if (props.currentTime !== undefined) playerRef.value?.setCurrentTime(props.currentTime);
+watch(() => props.currentTime, () => {
+  if (props.currentTime !== undefined) {
+    if (ignoredSeekTime.value !== null && props.currentTime === ignoredSeekTime.value) {
+      ignoredSeekTime.value = null;
+      return;
+    }
+    playerRef.value?.setCurrentTime(props.currentTime);
+  }
 });
+
+// 外部 seek 标记
+watch(
+  () => props.seekVersion,
+  () => {
+    if (props.seekVersion > handledSeekVersion.value) {
+      handledSeekVersion.value = props.seekVersion;
+      ignoredSeekTime.value = props.seekTime;
+      playerRef.value?.setCurrentTime(props.seekTime, true);
+    }
+  },
+  { flush: "sync" },
+);
+
+// 当前播放时间与 seek 时间相同的情况下，补一层兜底清理
+watch(
+  () => props.currentTime,
+  () => {
+    if (ignoredSeekTime.value !== null && props.currentTime !== ignoredSeekTime.value) {
+      ignoredSeekTime.value = null;
+    }
+  }
+);
 
 // 渐变宽度
 watchEffect(() => {
@@ -329,7 +378,7 @@ defineExpose<LyricPlayerRef>({
     playerRef.value?.setCurrentTime(time, isSeek);
   },
   get currentLyricLineObjects() {
-    return playerRef.value?.currentLyricLineObjects as LyricLineObject[] | undefined;
+    return playerRef.value?.currentLyricGroups as LyricLineGroup[] | undefined;
   },
 });
 </script>

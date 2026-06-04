@@ -1058,6 +1058,7 @@ class PlayerController {
     const safeTime = Math.max(0, Math.min(time, this.getDuration()));
     audioManager.seek(safeTime / 1000);
     statusStore.currentTime = safeTime;
+    statusStore.markLyricSeek();
     mediaSessionManager.updateState(this.getDuration(), safeTime, true);
   }
 

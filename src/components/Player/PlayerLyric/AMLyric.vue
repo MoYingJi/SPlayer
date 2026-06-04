@@ -29,6 +29,8 @@
         ref="lyricPlayerRef"
         :lyricLines="amLyricsData"
         :currentTime="currentTime"
+        :seekTime="statusStore.currentTime"
+        :seekVersion="statusStore.lyricSeekVersion"
         :playing="statusStore.playStatus"
         :enableSpring="settingStore.useAMSpring"
         :enableScale="settingStore.useAMSpring"
