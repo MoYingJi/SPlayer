@@ -1,5 +1,10 @@
 <template>
-  <div class="full-player-mobile" ref="mobileStart">
+  <div
+    class="full-player-mobile"
+    @touchstart.capture="onTouchStart"
+    @touchmove.capture="onTouchMove"
+    @touchend.capture="onTouchEnd"
+  >
     <!-- 顶部功能栏 -->
     <div class="top-bar">
       <!-- 收起按钮 -->
@@ -10,7 +15,7 @@
 
     <!-- 主内容 -->
     <div
-      :class="['mobile-content', { swiping: isSwiping }]"
+      :class="['mobile-content', { swiping: isSwipingX }]"
       :style="{ transform: contentTransform }"
       @click.stop
     >
@@ -124,7 +129,7 @@
 
       <!-- 歌词页 -->
       <div class="page lyric-page">
-        <div class="lyric-header">
+        <div class="lyric-header" ref="lyricHeaderRef">
           <s-image :src="musicStore.getSongCover('s')" class="lyric-cover" />
           <div class="lyric-info">
             <div class="name text-hidden">
@@ -151,10 +156,18 @@
             />
           </div>
         </div>
-        <div class="lyric-main">
-          <PlayerLyric />
-        </div>
+        <div class="lyric-main" />
       </div>
+    </div>
+
+    <!-- 独立歌词覆盖层（提取到 mobile-content 之外以避免 transform stacking context 阻断 mix-blend-mode） -->
+    <div
+      v-if="hasLyric"
+      class="lyric-overlay"
+      :class="{ swiping: isSwipingX }"
+      :style="{ transform: lyricPageTransform, paddingTop: lyricOverlayPaddingTop }"
+    >
+      <PlayerLyric />
     </div>
 
     <!-- 页面指示器 -->
@@ -170,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { useSwipe } from "@vueuse/core";
+import { useElementSize } from "@vueuse/core";
 import { useMusicStore, useStatusStore, useDataStore, useSettingStore } from "@/stores";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { useTimeFormat } from "@/composables/useTimeFormat";
@@ -185,7 +198,6 @@ const dataStore = useDataStore();
 const player = usePlayerController();
 const { timeDisplay, toggleTimeFormat } = useTimeFormat();
 
-const mobileStart = ref<HTMLElement | null>(null);
 const pageIndex = ref(0);
 
 const hasLyric = computed(() => {
@@ -205,35 +217,112 @@ watch(hasLyric, (val) => {
   if (!val) pageIndex.value = 0;
 });
 
-// 滑动偏移量
-const swipeOffset = ref(0);
+// 动态计算歌词覆盖层高度以对齐
+const lyricHeaderRef = ref<HTMLElement | null>(null);
+const { height: lyricHeaderHeight } = useElementSize(lyricHeaderRef);
+const lyricOverlayPaddingTop = computed(() => {
+  // 60px (lyric-page padding-top) + header height + 20px (margin-bottom)
+  return lyricHeaderHeight.value ? `${60 + lyricHeaderHeight.value + 20}px` : "140px";
+});
 
-const { direction, isSwiping, lengthX } = useSwipe(mobileStart, {
-  threshold: 10,
-  onSwipe: () => {
-    if (!hasLyric.value) return;
-    // 为正表示向左滑，为负表示向右滑
-    swipeOffset.value = lengthX.value;
-  },
-  onSwipeEnd: () => {
-    if (!hasLyric.value) {
-      swipeOffset.value = 0;
-      return;
+// 轴锁定：null=未确定, 'x'=水平翻页, 'y'=纵向滚动
+const axisLock = ref<"x" | "y" | null>(null);
+const isSwiping = ref(false);
+const lengthX = ref(0);
+
+let startX = 0;
+let startY = 0;
+
+const onTouchStart = (e: TouchEvent) => {
+  if (!hasLyric.value) return;
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
+  axisLock.value = null;
+  isSwiping.value = true;
+  lengthX.value = 0;
+};
+
+const onTouchMove = (e: TouchEvent) => {
+  if (!hasLyric.value || !isSwiping.value) return;
+
+  const currentX = e.touches[0].clientX;
+  const currentY = e.touches[0].clientY;
+  const deltaX = startX - currentX; // 左滑为正，符合 lengthX 语义
+  const deltaY = startY - currentY;
+
+  if (axisLock.value === null) {
+    if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
+      axisLock.value = Math.abs(deltaX) >= Math.abs(deltaY) ? "x" : "y";
+      // 确认是水平滑动时，在捕获阶段下发 touchcancel 终止子组件(如AMLL)内部的滑动状态
+      if (axisLock.value === "x" && e.target instanceof EventTarget) {
+        const touchList = e.touches;
+        e.target.dispatchEvent(
+          new TouchEvent("touchcancel", {
+            bubbles: true,
+            cancelable: true,
+            touches: Array.from(touchList),
+            targetTouches: Array.from(e.targetTouches),
+            changedTouches: Array.from(e.changedTouches),
+          }),
+        );
+      }
     }
+  }
+
+  if (axisLock.value === "x") {
+    // 拦截后续的 touchmove 事件，避免歌词收到滑动导致滚动
+    e.preventDefault();
+    e.stopPropagation();
+    lengthX.value = deltaX;
+  }
+};
+
+const onTouchEnd = (e: TouchEvent) => {
+  if (!hasLyric.value || !isSwiping.value) return;
+  isSwiping.value = false;
+
+  if (axisLock.value === "x") {
+    // 防止拦截事件造成点击误触
+    e.preventDefault();
+    const finalLengthX = startX - e.changedTouches[0].clientX;
+    const direction = finalLengthX > 0 ? "left" : "right";
+
     // 超过阈值则切换页面
-    if (direction.value === "left" && lengthX.value > 100) {
+    if (direction === "left" && finalLengthX > 100) {
       pageIndex.value = 1;
-    } else if (direction.value === "right" && lengthX.value < -100) {
+    } else if (direction === "right" && finalLengthX < -100) {
       pageIndex.value = 0;
     }
-    swipeOffset.value = 0;
-  },
+  }
+
+  axisLock.value = null;
+  lengthX.value = 0;
+};
+
+// 仅水平轴锁定时才视为正在水平滑动
+const isSwipingX = computed(() => isSwiping.value && axisLock.value === "x");
+
+// 计算歌词覆盖层的位移（与 mobile-content 内歌词页视觉同步，但在 stacking context 之外）
+const lyricPageTransform = computed(() => {
+  // pageIndex=0 时覆盖层在屏幕右侧，pageIndex=1 时回到屏幕内
+  const baseOffset = (1 - pageIndex.value) * 100;
+  if (!isSwipingX.value || !hasLyric.value) {
+    return `translateX(${baseOffset}%)`;
+  }
+  let pixelOffset = lengthX.value;
+  if (pageIndex.value === 0 && pixelOffset < 0) {
+    pixelOffset = pixelOffset * 0.3;
+  }
+  if (pageIndex.value === 1 && pixelOffset > 0) {
+    pixelOffset = pixelOffset * 0.3;
+  }
+  return `translateX(calc(${baseOffset}% - ${pixelOffset}px))`;
 });
 
 // 计算实时的变换位置
 const contentTransform = computed(() => {
   const baseOffset = pageIndex.value * 50; // 百分比
-  if (!isSwiping.value || !hasLyric.value) {
+  if (!isSwipingX.value || !hasLyric.value) {
     return `translateX(-${baseOffset}%)`;
   }
   let pixelOffset = lengthX.value;
@@ -534,6 +623,21 @@ const contentTransform = computed(() => {
         min-height: 0;
         position: relative;
       }
+    }
+  }
+  // 歌词覆盖层：提取到 mobile-content 之外，使 mix-blend-mode 能与实际模糊背景混合
+  .lyric-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0 24px;
+    box-sizing: border-box;
+    mix-blend-mode: var(--lyric-blend-mode);
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    &.swiping {
+      transition: none;
     }
   }
   .pagination {
