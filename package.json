@@ -31,9 +31,9 @@
     "postinstall": "electron-builder install-app-deps",
     "build:web": "pnpm build",
     "build:unpack": "pnpm build && electron-builder --dir",
-    "build:win": "pnpm build && electron-builder --win --config electron-builder.config.ts",
-    "build:mac": "pnpm build && electron-builder --mac --config electron-builder.config.ts",
-    "build:linux": "pnpm build && electron-builder --linux --config electron-builder.config.ts",
+    "build:win": "pnpm build && electron-builder --config electron-builder.config.ts --win",
+    "build:mac": "pnpm build && electron-builder --config electron-builder.config.ts --mac",
+    "build:linux": "pnpm build && electron-builder --config electron-builder.config.ts --linux",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs"
