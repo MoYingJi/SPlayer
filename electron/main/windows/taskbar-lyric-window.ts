@@ -11,7 +11,7 @@ import { debounce } from "lodash-es";
 import { join } from "node:path";
 import { processLog } from "../logger";
 import { useStore } from "../store";
-import { isDev, port } from "../utils/config";
+import { appName, isDev, port } from "../utils/config";
 import { loadNativeModule } from "../utils/native-loader";
 import { createWindow } from "./index";
 
@@ -155,6 +155,12 @@ class TaskbarLyricWindow {
         this.updateLayout(false);
         sendTheme();
       }
+    });
+
+    // 页面加载完成后设置标题
+    // 这里的标题设置是为了 Linux 能够为桌面歌词单独设置窗口规则
+    this.win.webContents.on("did-finish-load", () => {
+      this.win?.setTitle(`${appName} - 桌面歌词`);
     });
 
     if (taskbarLyricNative) {
