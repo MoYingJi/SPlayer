@@ -7,7 +7,6 @@ import {
   LyricPlayer as CoreLyricPlayer,
   type LyricLine,
   type LyricLineMouseEvent,
-  type LyricPlayerBase,
   type spring,
 } from "@applemusic-like-lyrics/core";
 import type { PropType, Ref, ShallowRef } from "vue";
@@ -179,7 +178,7 @@ export interface LyricPlayerRef {
   /**
    * 歌词播放实例
    */
-  lyricPlayer: Ref<LyricPlayerBase | undefined>;
+  lyricPlayer: Ref<CoreLyricPlayer | undefined>;
   /**
    * 将歌词播放实例的元素包裹起来的 DIV 元素实例
    */
@@ -188,26 +187,6 @@ export interface LyricPlayerRef {
    * 设置当前播放进度
    */
   setCurrentTime: (time: number, isSeek?: boolean) => void;
-  /**
-   * 获取当前 Player 内部使用的歌词行元素
-   */
-  get currentLyricLineObjects(): LyricLineGroup[] | undefined;
-}
-
-/**
- * DomLyricPlayer 内部使用的歌词行元素（被称为 LyricLineEl）
- *
- * 用来进行一些神秘的 Hook（如根据歌词行内容设置语言属性）
- */
-interface LyricLineGroup {
-  /**
-   * 歌词行
-   */
-  lyricLine: LyricLine;
-  /**
-   * 歌词行的 HTML 元素
-   */
-  element: HTMLElement;
 }
 
 // 模板引用
@@ -376,9 +355,6 @@ defineExpose<LyricPlayerRef>({
 
   setCurrentTime: (time: number, isSeek?: boolean) => {
     playerRef.value?.setCurrentTime(time, isSeek);
-  },
-  get currentLyricLineObjects() {
-    return playerRef.value?.currentLyricGroups as LyricLineGroup[] | undefined;
   },
 });
 </script>

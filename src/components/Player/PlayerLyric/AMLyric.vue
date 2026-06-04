@@ -57,7 +57,11 @@
 </template>
 
 <script setup lang="ts">
-import { LyricLineMouseEvent, type LyricLine } from "@applemusic-like-lyrics/core";
+import {
+  LyricLineMouseEvent,
+  LyricPlayer as CoreLyricPlayer,
+  type LyricLine,
+} from "@applemusic-like-lyrics/core";
 import { type LyricPlayerRef } from "@/components/AMLL/LyricPlayer.vue";
 import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
 import { getLyricLanguage } from "@/utils/format";
@@ -137,24 +141,30 @@ const jumpSeek = (line: LyricLineMouseEvent) => {
 
 // 处理歌词语言
 const processLyricLanguage = (player = lyricPlayerRef.value) => {
-  const lyricLineObjects = player?.currentLyricLineObjects;
-  if (!Array.isArray(lyricLineObjects) || lyricLineObjects.length === 0) {
+  const lyricGroups = (player?.lyricPlayer as CoreLyricPlayer | undefined)?.currentLyricGroups;
+  if (!Array.isArray(lyricGroups) || lyricGroups.length === 0) {
     return;
   }
-  // 遍历歌词行
-  for (let e of lyricLineObjects) {
+
+  // 遍历主歌词行
+  for (const group of lyricGroups) {
+    const lyricLine = group.mainLine?.getLine();
+    const lyricLineElement = group.mainLine?.getElement();
+    if (!lyricLine || !lyricLineElement) continue;
+
     // 获取歌词行内容 (合并逐字歌词为一句)
-    const content = e.lyricLine.words.map((word) => word.word).join("");
+    const content = lyricLine.words.map((word) => word.word).join("");
     // 跳过空行
     if (!content) continue;
     // 获取歌词语言
     const lang = getLyricLanguage(content);
+
     // 为主歌词设置 lang 属性 (firstChild 获取主歌词 不为翻译和音译设置属性)
-    const lyricMainLineElement = e.element?.firstChild;
+    const lyricMainLineElement = lyricLineElement.firstChild;
     if (lyricMainLineElement instanceof HTMLElement) {
       lyricMainLineElement.setAttribute("lang", lang);
     } else {
-      console.warn("无法获取歌词行元素的主歌词部分，无法设置 lang 属性", e.element);
+      console.warn("无法获取歌词行元素的主歌词部分，无法设置 lang 属性", lyricLineElement);
     }
   }
 };

@@ -10,8 +10,6 @@ const config: Configuration = {
   directories: {
     buildResources: "build",
   },
-  // 仅打包部分 Electron 语言包
-  electronLanguages: ["zh-CN"],
   // 包含在最终应用程序构建中的文件列表
   // 使用通配符 ! 表示排除不需要的文件
   files: [
@@ -23,6 +21,8 @@ const config: Configuration = {
     "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}",
     "!{.env,.env.*,.npmrc,pnpm-lock.yaml}",
   ],
+  // 仅打包部分 Electron 语言包
+  electronLanguages: ["zh-CN"],
   // 哪些文件将不会被压缩，而是解压到构建目录
   asarUnpack: ["public/**"],
   // 将原生插件作为外部资源复制
