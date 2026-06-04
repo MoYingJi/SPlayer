@@ -5,7 +5,7 @@ import { computed, ref, h, markRaw } from "vue";
 import { debounce } from "lodash-es";
 import { NA } from "naive-ui";
 import { disableDiscordRpc, enableDiscordRpc, updateDiscordConfig } from "@/core/player/PlayerIpc";
-import { getAuthToken, getAuthUrl, getSession } from "@/api/lastfm";
+import { getAuthToken, getAuthUrl, getSession, getLastfmErrorMessage } from "@/api/lastfm";
 import StreamingServerList from "../components/StreamingServerList.vue";
 
 export const useNetworkSettings = (): SettingConfig => {
@@ -147,6 +147,22 @@ export const useNetworkSettings = (): SettingConfig => {
       const tokenResponse = await getAuthToken();
       if (!tokenResponse.token) throw new Error("无法获取认证令牌");
       const token = tokenResponse.token;
+
+      try {
+        await getSession(token);
+      } catch (error: any) {
+        const errorData = error.response?.data;
+        if (errorData && errorData.error) {
+          const code = Number(errorData.error);
+          if (code !== 14 && code !== 15) {
+            lastfmAuthLoading.value = false;
+            const errorMessage = errorData.message || "未知错误";
+            window.$message.error(getLastfmErrorMessage(code, `认证失败: ${errorMessage}`));
+            return;
+          }
+        }
+      }
+
       const authUrl = getAuthUrl(token);
 
       if (typeof window !== "undefined") {
@@ -170,8 +186,23 @@ export const useNetworkSettings = (): SettingConfig => {
               window.$message.success(`已成功连接到 Last.fm 账号: ${sessionResponse.session.name}`);
               lastfmAuthLoading.value = false;
             }
-          } catch {
-            // 用户还未授权，继续等待
+          } catch (error: any) {
+            const errorData = error.response?.data;
+            if (errorData && errorData.error) {
+              const code = Number(errorData.error);
+              if (code === 14) {
+                window.$message.info("等待在 Last.fm 授权页面完成授权");
+                return;
+              }
+              if (code !== 15) {
+                clearInterval(checkAuth);
+                authWindow?.close();
+                lastfmAuthLoading.value = false;
+                const message = window.$message || console;
+                const errorMessage = errorData.message || "未知错误";
+                message.error(getLastfmErrorMessage(code, `认证失败: ${errorMessage}`));
+              }
+            }
           }
         }, 2000);
 
@@ -181,12 +212,30 @@ export const useNetworkSettings = (): SettingConfig => {
             lastfmAuthLoading.value = false;
             window.$message.warning("授权超时，请重试");
           }
-        }, 30000);
+        }, 60000);
       }
     } catch (error: any) {
       console.error("Last.fm 连接失败:", error);
-      window.$message.error(`连接失败: ${error.message || "未知错误"}`);
       lastfmAuthLoading.value = false;
+
+      const message = window.$message || {
+        error: console.error,
+        warning: console.warn,
+        success: console.log,
+      };
+
+      const errorData = error.response?.data;
+
+      if (errorData && typeof errorData === "object" && "error" in errorData) {
+        const errorCode = Number(errorData.error);
+        const errorMessage = errorData.message || "未知错误";
+        message.error(getLastfmErrorMessage(errorCode, `连接失败: ${errorMessage}`));
+      } else {
+        const msg = error.message || "未知错误";
+        if (msg !== "canceled") {
+          message.error(`连接失败: ${msg}`);
+        }
+      }
     }
   };
 
