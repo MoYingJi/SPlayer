@@ -10,6 +10,8 @@ const config: Configuration = {
   directories: {
     buildResources: "build",
   },
+  // 仅打包部分 Electron 语言包
+  electronLanguages: ["zh-CN"],
   // 包含在最终应用程序构建中的文件列表
   // 使用通配符 ! 表示排除不需要的文件
   files: [
@@ -58,10 +60,10 @@ const config: Configuration = {
         arch: ["x64", "arm64"],
       },
       // 打包版
-      {
-        target: "portable",
-        arch: ["x64", "arm64"],
-      },
+      // {
+      //   target: "portable",
+      //   arch: ["x64", "arm64"],
+      // },
     ],
     // 注册协议
     protocols: [
@@ -158,30 +160,30 @@ const config: Configuration = {
         arch: ["x64", "arm64"],
       },
       // AppImage 格式
-      {
-        target: "AppImage",
-        arch: ["x64", "arm64"],
-      },
+      // {
+      //   target: "AppImage",
+      //   arch: ["x64", "arm64"],
+      // },
       // Debian 包管理器
-      {
-        target: "deb",
-        arch: ["x64", "arm64"],
-      },
+      // {
+      //   target: "deb",
+      //   arch: ["x64", "arm64"],
+      // },
       // RPM 包管理器
-      {
-        target: "rpm",
-        arch: ["x64", "arm64"],
-      },
+      // {
+      //   target: "rpm",
+      //   arch: ["x64", "arm64"],
+      // },
       // Snap 包管理器（仅支持 x64 架构）
       // {
       //   target: "snap",
       //   arch: ["x64"],
       // },
       // 压缩包格式
-      {
-        target: "tar.gz",
-        arch: ["x64", "arm64"],
-      },
+      // {
+      //   target: "tar.gz",
+      //   arch: ["x64", "arm64"],
+      // },
     ],
     // 维护者信息
     maintainer: "imsyy.top",
