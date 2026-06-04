@@ -41,12 +41,17 @@
           </div>
           <!-- 显示评论 -->
           <n-badge
-            :value="formatCommentCount(statusStore.songCommentCount)"
+            class="comment-badge"
             v-if="showCommentButton"
             :show="
               statusStore.songCommentCount > 0 && settingStore.fullscreenPlayerElements.commentCount
             "
           >
+            <template #value>
+              <span :title="statusStore.songCommentCount.toString()">
+                {{ formatCommentCount(statusStore.songCommentCount) }}
+              </span>
+            </template>
             <div
               class="menu-icon"
               @click.stop="statusStore.showPlayerComment = !statusStore.showPlayerComment"
@@ -304,6 +309,11 @@ onBeforeUnmount(() => {
     height: 100%;
     padding: 0 30px;
     transition: opacity 0.3s;
+    .comment-badge {
+      :deep(.n-badge-sup)::before {
+        content: none;
+      }
+    }
     :deep(.menu-icon) {
       display: flex;
       align-items: center;
