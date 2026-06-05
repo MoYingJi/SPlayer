@@ -278,19 +278,32 @@ export const useDataStore = defineStore("data", {
      * @param song 歌曲
      */
     async setHistory(song: SongType) {
+      const saveHistory = async (list: SongType[]) => {
+        await musicDB.setItem("historyList", cloneDeep(toRaw(list)));
+        this.historyList = markRaw(list);
+      };
+
       try {
         let historyList: SongType[] = (await musicDB.getItem("historyList")) || [];
         if (!Array.isArray(historyList)) historyList = [];
-        // 过滤旧的同名歌曲，把新的放到第一位
         const updatedList = [song, ...historyList.filter((item) => item.id !== song.id)];
-        // 最多 500 首
         if (updatedList.length > 500) updatedList.splice(500);
-        // 存储
-        await musicDB.setItem("historyList", cloneDeep(toRaw(updatedList)));
-        this.historyList = markRaw(updatedList);
-      } catch (error) {
-        console.error("Error updating history:", error);
-        throw error;
+        await saveHistory(updatedList);
+      } catch (error: any) {
+        // 处理 IndexedDB 文件丢失/损坏错误
+        if (error.name === "NotReadableError") {
+          console.warn("History data corrupted, resetting...");
+          try {
+            await musicDB.removeItem("historyList"); // 清除损坏的记录
+            await saveHistory([song]);               // 重新从当前歌曲开始
+          } catch (retryError) {
+            console.error("Failed to recover history:", retryError);
+            this.historyList = markRaw([song]);     // 至少内存中保留当前歌曲
+          }
+        } else {
+          console.error("Error updating history:", error);
+          throw error;
+        }
       }
     },
     /**
