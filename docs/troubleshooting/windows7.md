@@ -83,7 +83,7 @@ Windows Registry Editor Version 5.00
 
 如果新版本无法在 Windows 7 上运行，可以尝试使用旧版本：
 
-1. 访问 [GitHub Releases](https://github.com/imsyy/SPlayer/releases)
+1. 访问 [GitHub Releases](https://github.com/SPlayer-Dev/SPlayer/releases)
 2. 查找使用 Electron 22 或更早版本的发布
 3. 下载对应的安装包
 

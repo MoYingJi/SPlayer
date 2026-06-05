@@ -4,7 +4,6 @@ import { serverLog } from "../../main/logger";
 import axios from "axios";
 import getKuwoSongUrl from "./kuwo";
 import getBodianSongUrl from "./bodian";
-import getGequbaoSongUrl from "./gequbao";
 
 /**
  * 直接获取 网易云云盘 链接
@@ -88,17 +87,5 @@ export const initUnblockAPI = async (fastify: FastifyInstance) => {
       return reply.send(result);
     },
   );
-  // gequbao
-  fastify.get(
-    "/unblock/gequbao",
-    async (
-      req: FastifyRequest<{ Querystring: { [key: string]: string } }>,
-      reply: FastifyReply,
-    ) => {
-      const result = await getGequbaoSongUrl(buildMatchInfo(req.query));
-      return reply.send(result);
-    },
-  );
-
   serverLog.info("🌐 Register UnblockAPI successfully");
 };

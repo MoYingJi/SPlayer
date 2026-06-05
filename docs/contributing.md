@@ -47,7 +47,7 @@
 
 ### 1. Fork 仓库
 
-访问 [SPlayer 仓库](https://github.com/imsyy/SPlayer)，点击右上角 **Fork** 按钮复制仓库到你的账号。
+访问 [SPlayer 仓库](https://github.com/SPlayer-Dev/SPlayer)，点击右上角 **Fork** 按钮复制仓库到你的账号。
 
 ### 2. 克隆你的 Fork
 
@@ -57,15 +57,15 @@ git clone https://github.com/YOUR_USERNAME/SPlayer.git
 cd SPlayer
 
 # 添加上游仓库
-git remote add upstream https://github.com/imsyy/SPlayer.git
+git remote add upstream https://github.com/SPlayer-Dev/SPlayer.git
 
 # 验证远程仓库配置
 git remote -v
 # 应显示:
 # origin    https://github.com/YOUR_USERNAME/SPlayer.git (fetch)
 # origin    https://github.com/YOUR_USERNAME/SPlayer.git (push)
-# upstream  https://github.com/imsyy/SPlayer.git (fetch)
-# upstream  https://github.com/imsyy/SPlayer.git (push)
+# upstream  https://github.com/SPlayer-Dev/SPlayer.git (fetch)
+# upstream  https://github.com/SPlayer-Dev/SPlayer.git (push)
 ```
 
 ### 3. 同步上游更新
@@ -245,7 +245,7 @@ git commit --amend -m "新的提交信息"
 
 如果您在贡献过程中遇到问题：
 
-1. 查阅项目 [Issues](https://github.com/imsyy/SPlayer/issues)
+1. 查阅项目 [Issues](https://github.com/SPlayer-Dev/SPlayer/issues)
 2. 提交新 Issue 描述您的问题
 
 感谢您的贡献！🎉

@@ -20,7 +20,8 @@ export default defineConfig({
       { text: "下载", link: "/download" },
       { text: "使用指南", link: "/guide" },
       { text: "API", link: "/api" },
-      { text: "GitHub", link: "https://github.com/imsyy/SPlayer" },
+      { text: "SPlayer-Next", link: "https://github.com/SPlayer-Dev/SPlayer-Next" },
+      { text: "GitHub", link: "https://github.com/SPlayer-Dev/SPlayer" },
     ],
 
     sidebar: [
@@ -64,7 +65,7 @@ export default defineConfig({
       label: "文章目录",
     },
 
-    socialLinks: [{ icon: "github", link: "https://github.com/imsyy/SPlayer" }],
+    socialLinks: [{ icon: "github", link: "https://github.com/SPlayer-Dev/SPlayer" }],
 
     footer: {
       message: "基于 AGPL-3.0 许可发布",
@@ -72,7 +73,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: "https://github.com/imsyy/SPlayer/edit/dev/docs/:path",
+      pattern: "https://github.com/SPlayer-Dev/SPlayer/edit/dev/docs/:path",
       text: "查看或编辑此页",
     },
 

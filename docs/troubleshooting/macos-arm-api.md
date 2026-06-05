@@ -30,7 +30,7 @@
 
 确保下载并安装 ARM 架构的 SPlayer：
 
-1. 访问 [GitHub Releases](https://github.com/imsyy/SPlayer/releases)
+1. 访问 [GitHub Releases](https://github.com/SPlayer-Dev/SPlayer/releases)
 2. 下载文件名包含 `arm64` 的版本
 3. 删除旧版本后重新安装
 
@@ -123,7 +123,7 @@ node -p "process.arch"  # arm64
 
 ## 反馈问题
 
-如果上述方法都无法解决问题，请在 [GitHub Issues](https://github.com/imsyy/SPlayer/issues) 提交问题，并附上：
+如果上述方法都无法解决问题，请在 [GitHub Issues](https://github.com/SPlayer-Dev/SPlayer/issues) 提交问题，并附上：
 
 1. macOS 版本
 2. 芯片型号（M1/M2/M3）

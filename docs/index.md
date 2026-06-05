@@ -5,7 +5,7 @@ layout: home
 hero:
   name: "SPlayer"
   text: "一个简约的音乐播放器"
-  tagline: 基于 Vue 3 + TypeScript + Naïve UI + Electron 开发，支持网页端与客户端
+  tagline: 基于 Vue 3 + TypeScript + Naïve UI + Electron 开发 · 项目已进入维护模式
   actions:
     - theme: brand
       text: 立即获取
@@ -31,3 +31,7 @@ features:
   - title: 🔄 多种部署方式
     details: 支持 Docker、Vercel、服务器部署，也可本地部署，提供完整的 API 接口和 WebSocket 控制
 ---
+
+::: warning 项目已进入维护模式
+SPlayer 后续仅进行必要的维护与重大问题修复，不再主动开发新功能。新功能与后续版本请关注 [SPlayer-Next](https://github.com/SPlayer-Dev/SPlayer-Next)。
+:::

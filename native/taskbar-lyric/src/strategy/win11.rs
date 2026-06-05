@@ -1,21 +1,18 @@
-use tracing::{debug, error};
 use windows::{
     Win32::{
         Foundation::{HWND, RECT},
-        UI::WindowsAndMessaging::{
-            FindWindowExW, GWL_EXSTYLE, GWL_STYLE, GetWindowRect, SetParent, WINDOW_EX_STYLE,
-            WINDOW_STYLE, WS_CAPTION, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_MAXIMIZEBOX,
-            WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
-        },
+        UI::WindowsAndMessaging::{FindWindowExW, GetWindowRect},
     },
     core::w,
 };
 
 use crate::{
-    LayoutParams, TaskbarStrategy,
-    strategy::{Rect, TaskbarLayout, Win11Layout},
+    strategy::{
+        AvailableSpace, ExtraLayoutInfo, LayoutParams, Rect, SystemType, TaskbarLayout,
+        TaskbarStrategy,
+    },
     uia::TaskbarScanner,
-    utils::{BRIDGE_CLASS, check_registry_value, find_taskbar_hwnd, modify_window_long},
+    utils::{BRIDGE_CLASS, check_registry_value, find_taskbar_hwnd, read_system_uses_light_theme},
 };
 
 pub struct Win11Strategy {
@@ -39,7 +36,7 @@ impl Win11Strategy {
 impl TaskbarStrategy for Win11Strategy {
     fn init(&mut self) -> bool {
         let Some(hwnd) = find_taskbar_hwnd() else {
-            error!("初始化失败，找不到 Shell_TrayWnd");
+            error!("Win11 初始化失败，找不到 Shell_TrayWnd");
             return false;
         };
 
@@ -47,40 +44,17 @@ impl TaskbarStrategy for Win11Strategy {
             unsafe { FindWindowExW(Some(hwnd), None, BRIDGE_CLASS, None) }.unwrap_or_default();
 
         if h_bridge.0.is_null() {
-            error!("初始化失败，找不到 XAML 桥");
+            error!("Win11 初始化失败，找不到 XAML 桥");
             return false;
         }
 
         self.h_taskbar = hwnd;
-        debug!(?hwnd, "Win11 策略初始化成功");
+        debug!("Win11 策略初始化成功");
         true
     }
 
     fn embed_window(&self, child_wnd: HWND) -> bool {
-        if self.h_taskbar.0.is_null() {
-            return false;
-        }
-
-        unsafe {
-            let _ = SetParent(child_wnd, Some(self.h_taskbar));
-
-            // 修改样式 (去除标题栏、边框等)
-            modify_window_long(child_wnd, GWL_STYLE, |raw_style| {
-                let style = WINDOW_STYLE(raw_style);
-                let mask =
-                    WS_CAPTION | WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX | WS_SYSMENU;
-                let new_style = style & !mask;
-                new_style.0
-            });
-
-            // 设置扩展样式 (透明 + 鼠标穿透 + 工具窗口)
-            modify_window_long(child_wnd, GWL_EXSTYLE, |raw_style| {
-                let ex_style = WINDOW_EX_STYLE(raw_style);
-                let new_ex_style = ex_style | WS_EX_LAYERED | WS_EX_TOOLWINDOW;
-                new_ex_style.0
-            });
-        }
-        true
+        super::embed_child_window(child_wnd, self.h_taskbar)
     }
 
     fn update_layout(&mut self, _params: LayoutParams) -> Option<TaskbarLayout> {
@@ -88,7 +62,11 @@ impl TaskbarStrategy for Win11Strategy {
             return None;
         }
 
-        // 托盘区域
+        let mut tb_rect = RECT::default();
+        unsafe {
+            let _ = GetWindowRect(self.h_taskbar, &raw mut tb_rect);
+        }
+
         let tray_rect = unsafe {
             let h_notify = FindWindowExW(Some(self.h_taskbar), None, w!("TrayNotifyWnd"), None)
                 .unwrap_or_default();
@@ -109,8 +87,8 @@ impl TaskbarStrategy for Win11Strategy {
         if self.scanner.is_none() {
             match TaskbarScanner::new() {
                 Ok(s) => self.scanner = Some(s),
-                Err(e) => {
-                    error!("[Win11] Scanner 初始化失败: {e:?}");
+                Err(_) => {
+                    error!("Scanner 初始化失败");
                     return None;
                 }
             }
@@ -119,8 +97,8 @@ impl TaskbarStrategy for Win11Strategy {
         let uia_bounds = if let Some(scanner) = self.scanner.as_ref() {
             match scanner.scan_taskbar(self.h_taskbar) {
                 Ok(b) => b,
-                Err(e) => {
-                    error!("[Win11] scan_taskbar 失败: {e:?}");
+                Err(_) => {
+                    error!("scan_taskbar 失败");
                     self.scanner = None;
                     return None;
                 }
@@ -130,23 +108,60 @@ impl TaskbarStrategy for Win11Strategy {
         };
 
         let is_centered = Self::is_taskbar_center_align();
+        let tb_height = tb_rect.bottom - tb_rect.top;
+
+        let content_left = uia_bounds.content.x;
+        let content_right = uia_bounds.content.x + uia_bounds.content.width;
+
+        let left_x = if uia_bounds.widgets.width > 0 && uia_bounds.widgets.x < content_left {
+            uia_bounds.widgets.x + uia_bounds.widgets.width
+        } else {
+            tb_rect.left
+        };
+
+        let left_width = (content_left - left_x).max(0);
+
+        let left_space = Rect {
+            x: left_x - tb_rect.left,
+            y: 0,
+            width: left_width,
+            height: tb_height,
+        };
+
+        let right_x = content_right;
+
+        let right_right_edge =
+            if uia_bounds.widgets.width > 0 && uia_bounds.widgets.x > content_right {
+                uia_bounds.widgets.x
+            } else if tray_rect.width > 0 {
+                tray_rect.x
+            } else {
+                tb_rect.right
+            };
+
+        let right_width = (right_right_edge - right_x).max(0);
+
+        let right_space = Rect {
+            x: right_x - tb_rect.left,
+            y: 0,
+            width: right_width,
+            height: tb_height,
+        };
 
         Some(TaskbarLayout {
-            system_type: "win11".to_string(),
-            win10: None,
-            win11: Some(Win11Layout {
-                start_button: uia_bounds.start_btn,
-                widgets: uia_bounds.widgets,
-                content: uia_bounds.content,
-                tray: tray_rect,
+            space: AvailableSpace {
+                left: left_space,
+                right: right_space,
+            },
+            extra: ExtraLayoutInfo {
+                system_type: SystemType::Win11,
                 is_centered,
-            }),
+                is_light: read_system_uses_light_theme(),
+            },
         })
     }
 
-    fn restore(&self) {
-        // Win11 不需要恢复
-    }
+    fn restore(&self) {}
 }
 
 impl Drop for Win11Strategy {

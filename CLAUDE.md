@@ -46,6 +46,7 @@ Set `SKIP_NATIVE_BUILD=true` to skip Rust native module compilation during dev.
 ### Native Modules (`native/`)
 
 Rust-based, built via `scripts/build-native.ts`:
+
 - `taskbar-lyric` — Windows taskbar lyrics display
 - `external-media-integration` — OS media integration
 - `smtc-for-splayer` — Windows System Media Transport Controls

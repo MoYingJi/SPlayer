@@ -45,14 +45,7 @@ export enum QualityType {
 }
 
 /** 音频源类型 */
-export type AudioSourceType =
-  | "official"
-  | "netease"
-  | "kuwo"
-  | "bodian"
-  | "gequbao"
-  | "local"
-  | "streaming";
+export type AudioSourceType = "official" | "netease" | "kuwo" | "bodian" | "local" | "streaming";
 
 export type UserType = {
   id: number;

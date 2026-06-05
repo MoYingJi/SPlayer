@@ -108,6 +108,6 @@ xattr -l /Applications/SPlayer.app
 
 **解决方案**：
 
-1. 手动从 [GitHub Releases](https://github.com/imsyy/SPlayer/releases) 下载最新版本
+1. 手动从 [GitHub Releases](https://github.com/SPlayer-Dev/SPlayer/releases) 下载最新版本
 2. 删除旧版本后重新安装
 3. 检查网络连接是否正常

@@ -6,7 +6,7 @@
 
 ### 客户端下载
 
-前往 [GitHub Releases](https://github.com/imsyy/SPlayer/releases) 下载对应系统的安装包：
+前往 [GitHub Releases](https://github.com/SPlayer-Dev/SPlayer/releases) 下载对应系统的安装包：
 
 | 系统    | 安装包格式                        |
 | ------- | --------------------------------- |
@@ -133,7 +133,7 @@ cargo --version
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/imsyy/SPlayer.git
+git clone https://github.com/SPlayer-Dev/SPlayer.git
 cd SPlayer
 
 # 2. 安装依赖

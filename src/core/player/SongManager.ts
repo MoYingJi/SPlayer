@@ -24,7 +24,6 @@ export enum SongUnlockServer {
   NETEASE = "netease",
   BODIAN = "bodian",
   KUWO = "kuwo",
-  GEQUBAO = "gequbao",
 }
 
 /** 歌曲播放地址信息 */

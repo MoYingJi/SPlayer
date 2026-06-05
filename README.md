@@ -5,9 +5,12 @@
 > 仅构建 Windows x64 Setup 和 Linux x64 (pacman)
 
 > [!CAUTION]
-> # 本项目停止维护
-> 后续版本请使用 [SPlayer-Next](https://github.com/SPlayer-Dev/SPlayer-Next)
-
+>
+> # 本项目进入维护模式
+>
+> 项目已进入维护模式，后续仅进行必要的维护与重大问题修复，不再主动开发新功能
+>
+> 新功能及后续版本请移步 [SPlayer-Next](https://github.com/SPlayer-Dev/SPlayer-Next)
 
 <div align="center">
 <img alt="logo" height="100" width="100" src="public/icons/favicon.png" />

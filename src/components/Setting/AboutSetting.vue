@@ -2,6 +2,17 @@
   <div class="setting-type">
     <div class="set-list">
       <n-h3 prefix="bar"> 关于软件 </n-h3>
+      <n-alert type="warning" style="margin-bottom: 12px">
+        <template #header>本项目已进入维护模式</template>
+        后续仅进行必要的维护与重大问题修复，不再主动开发新功能。新功能及后续版本请移步
+        <n-button
+          text
+          type="primary"
+          @click="openLink('https://github.com/SPlayer-Dev/SPlayer-Next')"
+        >
+          SPlayer-Next
+        </n-button>
+      </n-alert>
       <n-card class="set-item">
         <n-flex align="center" class="about">
           <SvgIcon name="SPlayer" size="26" />

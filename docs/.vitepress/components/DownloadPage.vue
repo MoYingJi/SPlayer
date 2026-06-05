@@ -149,7 +149,7 @@ import { computed, onMounted, ref } from "vue";
 import { marked } from "marked";
 
 // --- 配置常量 ---
-const GITHUB_REPO = "imsyy/SPlayer";
+const GITHUB_REPO = "SPlayer-Dev/SPlayer";
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
 
 const githubReleasesUrl = `https://github.com/${GITHUB_REPO}/releases`;

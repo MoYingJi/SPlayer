@@ -98,6 +98,6 @@ softwareupdate --install-rosetta
    rm -rf ~/Library/Caches/SPlayer
    ```
 
-2. 重新从 [GitHub Releases](https://github.com/imsyy/SPlayer/releases) 下载最新版本
+2. 重新从 [GitHub Releases](https://github.com/SPlayer-Dev/SPlayer/releases) 下载最新版本
 
 3. 使用方法一移除隔离属性后再打开
