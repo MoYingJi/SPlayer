@@ -22,7 +22,7 @@
     <n-collapse-transition :show="displaySuffix !== ''">
       <n-divider />
       <n-flex justify="end">
-        <n-text> {{ displaySuffix }} </n-text>
+        <n-text style="user-select: text"> {{ displaySuffix }} </n-text>
       </n-flex>
     </n-collapse-transition>
     <n-divider />
