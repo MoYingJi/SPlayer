@@ -28,9 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import type { SongType } from "@/types/main";
+import { isMetaDataArray, type MetaData, type SongType } from "@/types/main";
 import { useLocalStore, useSettingStore } from "@/stores";
-import { isArray, some } from "lodash-es";
+import { some } from "lodash-es";
 import { usePlayerController } from "@/core/player/PlayerController";
 
 const props = defineProps<{ data: SongType[] }>();
@@ -57,15 +57,22 @@ const formatArtistsList = (
   const allArtists = data.reduce(
     (acc, song) => {
       // 歌手信息
-      let artists = isArray(song.artists) ? song.artists : [song.artists];
+      let artists: Array<string | MetaData> = isMetaDataArray(song.artists)
+        ? song.artists
+        : [song.artists];
       // 分割歌手
       separators.forEach((separator) => {
-        artists = artists.flatMap((artist: any) =>
-          typeof artist === "string" ? artist.split(separator) : [artist],
-        );
+        artists = artists.reduce<Array<string | MetaData>>((result, artist) => {
+          if (typeof artist === "string") {
+            result.push(...artist.split(separator));
+          } else {
+            result.push(artist);
+          }
+          return result;
+        }, []);
       });
       // 遍历歌手
-      artists.forEach((artist: any) => {
+      artists.forEach((artist) => {
         // 获取歌手名称
         const artistName = typeof artist === "string" ? artist.trim() : artist.name;
         // 若还无歌手分类，初始化为空数组

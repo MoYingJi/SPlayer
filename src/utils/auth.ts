@@ -534,6 +534,7 @@ export const deleteSongs = async (
       positiveText: "删除",
       negativeText: "取消",
       onPositiveClick: async () => {
+        const onCallback = isFunction(callback) ? callback : undefined;
         // 本地歌单
         if (pid.toString().length === 16) {
           const localStore = useLocalStore();
@@ -542,7 +543,7 @@ export const deleteSongs = async (
             ids.map((id) => id.toString()),
           );
           if (success) {
-            if (isFunction(callback)) callback();
+            onCallback?.();
             window.$message.success("删除成功");
           } else {
             window.$message.error("删除失败");
@@ -556,7 +557,7 @@ export const deleteSongs = async (
             window.$message.error(result.body?.message || "删除歌曲失败，请重试");
             return;
           }
-          if (isFunction(callback)) callback();
+          onCallback?.();
           window.$message.success("删除成功");
         } else {
           window.$message.error(result?.message || "删除歌曲失败，请重试");

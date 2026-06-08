@@ -7,6 +7,14 @@ export type MetaData = {
   alias?: string[];
 };
 
+export const isMetaData = (value: unknown): value is MetaData => {
+  return typeof value === "object" && value !== null && "id" in value && "name" in value;
+};
+
+export const isMetaDataArray = (value: unknown): value is MetaData[] => {
+  return Array.isArray(value);
+};
+
 export type DjData = {
   id: number;
   /** 所属电台 ID */

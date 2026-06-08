@@ -1,8 +1,8 @@
 > [!CAUTION]
 >
-> 这里是我的私人预制菜😋，开点小灶，提供一些补丁和依赖升级，维持基础使用
+> 这里是我的私房菜😋，提供一些补丁和依赖升级，维持基础使用
 >
-> 仅构建 Windows x64 Setup 和 Linux x64 (pacman)
+> 仅构建 Windows x64 Setup 和 Linux x64 (pacman)，仅保证 Arch Linux + KDE Plasma Wayland 下的可用性
 
 > [!CAUTION]
 >

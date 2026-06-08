@@ -109,8 +109,7 @@
 
 <script setup lang="ts">
 import type { DataTableColumns, DataTableRowKey } from "naive-ui";
-import type { SongType } from "@/types/main";
-import { isArray, isObject } from "lodash-es";
+import { isMetaData, isMetaDataArray, type SongType } from "@/types/main";
 import { openPlaylistAdd } from "@/utils/modal";
 import { deleteSongs } from "@/utils/auth";
 import { NInput, NInputNumber, NButton, NText, NFlex } from "naive-ui";
@@ -187,11 +186,11 @@ const tableData = computed<DataType[]>(() =>
     key: index + 1,
     id: song?.id,
     name: song?.name || "未知曲目",
-    artists: isArray(song?.artists)
+    artists: isMetaDataArray(song?.artists)
       ? // 拼接歌手
         song?.artists.map((ar: { name: string }) => ar.name).join(" / ")
       : song?.artists || "未知歌手",
-    album: isObject(song?.album) ? song?.album.name : song?.album || "未知专辑",
+    album: isMetaData(song?.album) ? song?.album.name : song?.album || "未知专辑",
     // 原始数据
     origin: song,
   })),

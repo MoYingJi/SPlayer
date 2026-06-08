@@ -21,6 +21,7 @@ export default [
       "**/node_modules",
       "**/dist",
       "**/out",
+      "**/.github",
       "**/.gitignore",
       "**/docs",
       "**/auto-imports.d.ts",
@@ -60,6 +61,19 @@ export default [
           argsIgnorePattern: "^_",
         },
       ],
+    },
+  },
+  {
+    files: ["**/*.{cjs,cts}"],
+
+    languageOptions: {
+      globals: { ...globals.node },
+      ecmaVersion: "latest",
+      sourceType: "commonjs",
+    },
+
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
   {

@@ -115,22 +115,14 @@
       <div v-if="musicStore.playSong.type !== 'radio'" class="album">
         <SvgIcon :depth="3" name="Album" size="20" />
         <span
-          v-if="isObject(musicStore.playSong.album)"
+          v-if="isMetaData(musicStore.playSong.album)"
           class="name-text text-hidden"
           @click="jumpPage({ name: 'album', query: { id: musicStore.playSong.album.id } })"
         >
-          {{
-            (settingStore.hideBracketedContent
-              ? removeBrackets(musicStore.playSong.album?.name)
-              : musicStore.playSong.album?.name) || "未知专辑"
-          }}
+          {{ albumName }}
         </span>
         <span v-else class="name-text text-hidden">
-          {{
-            (settingStore.hideBracketedContent
-              ? removeBrackets(musicStore.playSong.album)
-              : musicStore.playSong.album) || "未知专辑"
-          }}
+          {{ albumName }}
         </span>
       </div>
       <!-- 电台 -->
@@ -144,8 +136,9 @@
 
 <script setup lang="ts">
 import type { RouteLocationRaw } from "vue-router";
+import { isMetaData } from "@/types/main";
 import { useMusicStore, useStatusStore, useSettingStore } from "@/stores";
-import { debounce, isObject } from "lodash-es";
+import { debounce } from "lodash-es";
 import { removeBrackets } from "@/utils/format";
 import { SongUnlockServer } from "@/core/player/SongManager";
 import { useLyricManager } from "@/core/player/LyricManager";
@@ -237,6 +230,12 @@ const audioSourceText = computed(() => {
     return sourceMap[statusStore.audioSource] || statusStore.audioSource.toUpperCase();
   }
   return "Netease";
+});
+
+const albumName = computed(() => {
+  const album = musicStore.playSong.album;
+  const name = isMetaData(album) ? album.name : album;
+  return (settingStore.hideBracketedContent ? removeBrackets(name) : name) || "未知专辑";
 });
 
 const jumpPage = debounce(

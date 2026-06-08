@@ -2,7 +2,7 @@
   "name": "splayer",
   "productName": "SPlayer",
   "version": "3.1.1",
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@11.5.2",
   "description": "A minimalist music player",
   "main": "./out/main/index.js",
   "author": "imsyy",
@@ -15,7 +15,7 @@
   "engines": {
     "node": ">=24",
     "npm": ">=11",
-    "pnpm": ">=10"
+    "pnpm": ">=11"
   },
   "type": "module",
   "scripts": {
@@ -83,6 +83,8 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@eslint/eslintrc": "^3.3.5",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron-toolkit/utils": "^4.0.0",
@@ -103,14 +105,16 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "ajv": "^8.20.0",
     "crypto-js": "^4.2.0",
-    "electron": "^41.7.1",
-    "electron-builder": "^26.8.1",
+    "dotenv": "^17.4.2",
+    "electron": "^42.0.0",
+    "electron-builder": "^26.15.2",
     "electron-log": "^5.4.4",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.4",
     "eslint-plugin-vue": "^9.33.0",
     "fast-glob": "^3.3.3",
     "fastify": "^5.8.5",
+    "globals": "^16.4.0",
     "naive-ui": "2.43.2",
     "prettier": "^3.8.3",
     "rimraf": "^6.1.3",

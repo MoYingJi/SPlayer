@@ -145,7 +145,7 @@
         class="album text-hidden"
       >
         <n-text
-          v-if="isObject(song.album)"
+          v-if="isMetaData(song.album)"
           class="album-text"
           @click="
             router.push({
@@ -199,13 +199,12 @@
 </template>
 
 <script setup lang="ts">
-import { QualityType, type SongType } from "@/types/main";
+import { QualityType, isMetaData, type SongType } from "@/types/main";
 import { useStatusStore, useMusicStore, useDataStore, useSettingStore } from "@/stores";
 import { formatNumber, formatFileSize } from "@/utils/helper";
 import { openJumpArtist } from "@/utils/modal";
 import { removeBrackets } from "@/utils/format";
 import { toLikeSong } from "@/utils/auth";
-import { isObject } from "lodash-es";
 import { formatTimestamp, msToTime } from "@/utils/time";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { useMobile } from "@/composables/useMobile";
@@ -249,7 +248,7 @@ const qualityColor = computed(() => {
 // 专辑名称
 const albumName = computed(() => {
   const album = song.value.album;
-  const name = isObject(album) ? album.name : album;
+  const name = isMetaData(album) ? album.name : album;
   return (settingStore.hideBracketedContent ? removeBrackets(name) : name) || "未知专辑";
 });
 </script>

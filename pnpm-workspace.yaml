@@ -9,18 +9,21 @@ overrides:
   dmg-builder: 26.0.12
   electron-builder-squirrel-windows: 26.0.12
 
-onlyBuiltDependencies:
-  - "@applemusic-like-lyrics/core"
-  - "@applemusic-like-lyrics/lyric"
-  - "@parcel/watcher"
-  - "better-sqlite3"
-  - "core-js"
-  - "electron"
-  - "electron-winstaller"
-  - "esbuild"
-  - "sharp"
-  - "vue-demi"
+blockExoticSubdeps: false
 
-ignoredBuiltDependencies:
-  - "register-scheme"
-  - "wasm-pack"
+allowBuilds:
+  "@applemusic-like-lyrics/core": true
+  "@applemusic-like-lyrics/lyric": true
+  "@parcel/watcher": true
+  better-sqlite3: true
+  core-js: true
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  sharp: true
+  vue-demi: true
+  register-scheme: false
+  wasm-pack: false
+
+patchedDependencies:
+  better-sqlite3@12.10.0: patches/better-sqlite3@12.10.0.patch

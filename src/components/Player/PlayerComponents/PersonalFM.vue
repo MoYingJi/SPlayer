@@ -33,7 +33,7 @@
             {{ ar.name }}
           </n-text>
         </div>
-        <div v-if="isObject(musicStore.personalFMSong.album)" class="album text-hidden">
+        <div v-if="isMetaData(musicStore.personalFMSong.album)" class="album text-hidden">
           <SvgIcon name="Album" :depth="3" />
           <n-text class="album-text">
             {{ musicStore.personalFMSong.album?.name || "未知专辑" }}
@@ -85,11 +85,12 @@
 </template>
 
 <script setup lang="ts">
+import { isMetaData } from "@/types/main";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { useSongManager } from "@/core/player/SongManager";
 import { useMusicStore, useStatusStore, useSettingStore } from "@/stores";
 import { coverLoaded } from "@/utils/helper";
-import { debounce, isObject } from "lodash-es";
+import { debounce } from "lodash-es";
 
 const musicStore = useMusicStore();
 const statusStore = useStatusStore();
