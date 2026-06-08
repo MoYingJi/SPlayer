@@ -51,6 +51,7 @@
         }"
         class="am-lyric"
         @line-click="jumpSeek"
+        @line-contextmenu="lineContextMenu"
       />
     </div>
   </Transition>
@@ -120,8 +121,8 @@ const amLyricsData = computed(() => {
 const hasDuet = computed(() => amLyricsData.value?.some((line) => line.isDuet) ?? false);
 
 // 进度跳转
-const jumpSeek = (line: LyricLineMouseEvent) => {
-  const lineContent = line.line.getLine();
+const jumpSeek = (event: LyricLineMouseEvent) => {
+  const lineContent = event.line.getLine();
   const lyricTargetTime = lineContent?.startTime;
   if (
     typeof lyricTargetTime !== "number" ||
@@ -137,6 +138,10 @@ const jumpSeek = (line: LyricLineMouseEvent) => {
   const musicTargetTime = lyricTargetTime - offsetMs;
   player.setSeek(musicTargetTime);
   player.play();
+};
+
+// 右键歌词行
+const lineContextMenu = (_: LyricLineMouseEvent) => {
 };
 
 // 处理歌词语言
