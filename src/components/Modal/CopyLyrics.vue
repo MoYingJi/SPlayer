@@ -37,13 +37,20 @@
           <n-checkbox value="artist" label="歌手" />
         </n-flex>
       </n-checkbox-group>
-      <n-flex justify="end" align="center" class="footer-actions">
-        <n-button @click="selectAll">
-          {{ isAllSelected ? "全不选" : "全选" }}
-        </n-button>
-        <n-button type="primary" :disabled="selectedLines.length === 0" @click="handleCopy">
-          复制 ({{ selectedLines.length }})
-        </n-button>
+      <n-flex justify="space-between" align="center" class="footer-actions">
+        <n-flex>
+          <n-button @click="handleCopyMore">
+            复制更多信息
+          </n-button>
+        </n-flex>
+        <n-flex>
+          <n-button @click="selectAll">
+            {{ isAllSelected ? "全不选" : "全选" }}
+          </n-button>
+          <n-button type="primary" :disabled="selectedLines.length === 0" @click="handleCopy">
+            复制 ({{ selectedLines.length }})
+          </n-button>
+        </n-flex>
       </n-flex>
     </n-flex>
   </div>
@@ -52,6 +59,7 @@
 <script setup lang="ts">
 import { useMusicStore } from "@/stores";
 import { copyData } from "@/utils/helper";
+import { openCopySongInfo } from "@/utils/modal";
 
 const props = defineProps<{ onClose: () => void }>();
 
@@ -141,6 +149,13 @@ const handleCopy = async () => {
   } else {
     window.$message.warning("没有可复制的内容");
   }
+};
+
+/**
+ * 复制更多信息
+ */
+const handleCopyMore = () => {
+  openCopySongInfo(musicStore.playSong.id);
 };
 </script>
 
