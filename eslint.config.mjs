@@ -21,7 +21,6 @@ export default [
       "**/node_modules",
       "**/dist",
       "**/out",
-      "**/.github",
       "**/.gitignore",
       "**/docs",
       "**/auto-imports.d.ts",
@@ -64,11 +63,11 @@ export default [
     },
   },
   {
-    files: ["**/*.{cjs,cts}"],
+    files: [".github/scripts/prepare-release-assets.cjs"],
 
     languageOptions: {
       globals: { ...globals.node },
-      ecmaVersion: "latest",
+      ecmaVersion: 5,
       sourceType: "commonjs",
     },
 

@@ -122,6 +122,11 @@ class MainProcess {
 
     // 应用被激活
     app.on("activate", () => {
+      if (isMac) {
+        mainWindow.showWindow();
+        return;
+      }
+
       const allWindows = BrowserWindow.getAllWindows();
       if (allWindows.length) {
         allWindows[0].focus();
