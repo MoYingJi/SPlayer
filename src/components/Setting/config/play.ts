@@ -521,6 +521,45 @@ export const usePlaySettings = (): SettingConfig => {
             }),
           },
           {
+            key: "scrobbleSong",
+            label: "听歌打卡",
+            type: "switch",
+            description: "是否将听歌记录上报至 NCM",
+            keywords: ["打卡", "scrobble"],
+            value: computed({
+              get: () => settingStore.scrobbleSong,
+              set: (v) => (settingStore.scrobbleSong = v),
+            }),
+            children: [
+              {
+                key: "scrobbleThresholdRatio",
+                label: "打卡阈值比例",
+                type: "input-number",
+                description: "播放达到歌曲总时长的该比例后可打卡",
+                min: 1,
+                max: 100,
+                suffix: "%",
+                value: computed({
+                  get: () => settingStore.scrobbleThresholdRatio,
+                  set: (v) => (settingStore.scrobbleThresholdRatio = v),
+                }),
+              },
+              {
+                key: "scrobbleThresholdSeconds",
+                label: "打卡阈值时长",
+                type: "input-number",
+                description: "播放达到该时长后可打卡，单位秒",
+                min: 10,
+                max: 1800,
+                suffix: "s",
+                value: computed({
+                  get: () => settingStore.scrobbleThresholdSeconds,
+                  set: (v) => (settingStore.scrobbleThresholdSeconds = v),
+                }),
+              },
+            ],
+          },
+          {
             key: "audioEngine",
             label: "音频处理引擎",
             type: "select",

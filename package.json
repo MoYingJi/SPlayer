@@ -46,7 +46,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@imsyy/color-utils": "^1.0.2",
     "@material/material-color-utilities": "^0.4.0",
-    "@neteasecloudmusicapienhanced/api": "^4.35.2",
+    "@neteasecloudmusicapienhanced/api": "^4.36.1",
     "@pixi/app": "^7.4.3",
     "@pixi/core": "^7.4.3",
     "@pixi/display": "^7.4.3",

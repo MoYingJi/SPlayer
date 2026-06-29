@@ -1,11 +1,13 @@
 import { toRaw } from "vue";
 import { AudioErrorCode } from "@/core/audio-player/BaseAudioPlayer";
+import { scrobble as scrobbleNetease } from "@/api/user";
 import { useDataStore, useMusicStore, useSettingStore, useStatusStore } from "@/stores";
 import type { AudioSourceType, QualityType, SongType } from "@/types/main";
 import type { RepeatModeType, ShuffleModeType } from "@/types/shared/play-mode";
 import { type AudioAnalysis } from "@/types/audio/automix";
 import { calculateLyricIndex } from "@/utils/calc";
 import { getCoverColor } from "@/utils/color";
+import { isLogin } from "@/utils/auth";
 import { isElectron, isMac } from "@/utils/env";
 import { getPlayerInfoObj, getPlaySongData } from "@/utils/format";
 import { handleSongQuality, shuffleArray, sleep } from "@/utils/helper";
@@ -59,6 +61,16 @@ class PlayerController {
   private rateResetTimer: ReturnType<typeof setTimeout> | undefined;
   /** 速率渐变动画帧 */
   private rateRampFrame: number | undefined;
+  /** 当前曲目累计真实播放时长（毫秒，不含 seek 跳过） */
+  private scrobblePlayedMs = 0;
+  /** 上次记录真实播放时长的时间戳 */
+  private scrobbleLastTickAt = 0;
+  /** 上次记录的播放位置（毫秒） */
+  private scrobbleLastPositionMs = 0;
+  /** 是否发生了 seek，下一次 timeupdate 不计入真实播放时长 */
+  private scrobbleSeekPending = false;
+  /** 当前曲目是否已经完成过打卡 */
+  private hasScrobbledCurrentSong = false;
 
   constructor() {
     // 初始化 AudioManager（会根据设置自动选择引擎）
@@ -93,7 +105,7 @@ class PlayerController {
       return 1;
     }
     const { trackGain, albumGain, trackPeak, albumPeak } = song.replayGain;
-    let targetGain = 1;
+    let targetGain: number;
     // 优先使用指定模式的增益，如果不存在则回退到另一种
     // 如果 .ratio 存在，则直接使用线性值
     if (settingStore.replayGainMode === "album") {
@@ -192,6 +204,8 @@ class PlayerController {
     const musicStore = useMusicStore();
     const statusStore = useStatusStore();
     const lyricManager = useLyricManager();
+
+    this.resetScrobbleTracker(startSeek);
 
     musicStore.playSong = song;
     statusStore.currentTime = startSeek;
@@ -607,6 +621,87 @@ class PlayerController {
   }
 
   /**
+   * 上报听歌打卡
+   */
+  private async scrobbleCurrentSong() {
+    const musicStore = useMusicStore();
+    const settingStore = useSettingStore();
+
+    if (!settingStore.scrobbleSong || !isLogin()) return;
+
+    const song = musicStore.playSong;
+    if (this.hasScrobbledCurrentSong) return;
+
+    const sourceid = musicStore.playPlaylistId;
+    if (!song?.id || !sourceid || song.type === "radio") return;
+
+    const playedSeconds = Math.floor(this.scrobblePlayedMs / 1000);
+    const thresholdSeconds = this.getScrobbleThresholdSeconds(song.duration);
+    if (playedSeconds < thresholdSeconds) return;
+
+    try {
+      await scrobbleNetease(song.id, sourceid, playedSeconds);
+      this.hasScrobbledCurrentSong = true;
+      console.log("听歌打卡成功", { id: song.id, sourceid, playedSeconds, thresholdSeconds });
+    } catch (error) {
+      console.error("听歌打卡失败:", error);
+    }
+  }
+
+  /**
+   * 重置打卡计时器
+   */
+  private resetScrobbleTracker(startSeek: number = 0) {
+    this.scrobblePlayedMs = 0;
+    this.scrobbleLastTickAt = 0;
+    this.scrobbleLastPositionMs = Math.max(0, startSeek);
+    this.scrobbleSeekPending = false;
+    this.hasScrobbledCurrentSong = false;
+  }
+
+  /**
+   * 累计真实播放时长
+   */
+  private updateScrobbleProgress(currentTimeMs: number) {
+    const now = Date.now();
+
+    if (!this.scrobbleLastTickAt) {
+      this.scrobbleLastTickAt = now;
+      this.scrobbleLastPositionMs = currentTimeMs;
+      this.scrobbleSeekPending = false;
+      return;
+    }
+
+    const wallDelta = now - this.scrobbleLastTickAt;
+    const positionDelta = currentTimeMs - this.scrobbleLastPositionMs;
+    const seekDetected =
+      this.scrobbleSeekPending ||
+      positionDelta < -200 ||
+      Math.abs(positionDelta - wallDelta) > 2500;
+
+    if (!seekDetected && wallDelta > 0 && wallDelta < 10_000) {
+      this.scrobblePlayedMs += wallDelta;
+    }
+
+    this.scrobbleLastTickAt = now;
+    this.scrobbleLastPositionMs = currentTimeMs;
+    this.scrobbleSeekPending = false;
+  }
+
+  /**
+   * 计算打卡阈值（秒）
+   */
+  private getScrobbleThresholdSeconds(durationMs: number): number {
+    const settingStore = useSettingStore();
+    const ratio = Math.min(100, Math.max(1, settingStore.scrobbleThresholdRatio || 50));
+    const fixedSeconds = Math.max(1, settingStore.scrobbleThresholdSeconds || 240);
+    const durationSeconds = durationMs > 0 ? Math.floor(durationMs / 1000) : 0;
+    const ratioSeconds =
+      durationSeconds > 0 ? Math.ceil((durationSeconds * ratio) / 100) : Number.POSITIVE_INFINITY;
+    return Math.min(fixedSeconds, ratioSeconds);
+  }
+
+  /**
    * 解析本地歌曲元信息
    * @param path 歌曲路径
    */
@@ -702,6 +797,8 @@ class PlayerController {
       // 注意：failSkipCount 的重置移至 onTimeUpdate，确保有实际进度
       // Last.fm Scrobbler
       lastfmScrobbler.resume();
+      this.scrobbleLastTickAt = Date.now();
+      this.scrobbleSeekPending = false;
       // IPC 通知
       playerIpc.sendPlayStatus(true);
       playerIpc.sendTaskbarState({ isPlaying: true });
@@ -721,11 +818,13 @@ class PlayerController {
       playerIpc.sendTaskbarMode("paused");
       playerIpc.sendTaskbarProgress(statusStore.progress);
       lastfmScrobbler.pause();
+      this.scrobbleLastTickAt = 0;
       console.log(`⏸️ [${musicStore.playSong?.id}] 歌曲暂停`);
     });
     // 拖动进度条
     audioManager.addEventListener("seeking", () => {
       useAutomixManager().resetAutomixScheduling("MONITORING");
+      this.scrobbleSeekPending = true;
     });
     // 播放结束
     audioManager.addEventListener("ended", () => {
@@ -750,12 +849,13 @@ class PlayerController {
       const rawTime = audioManager.currentTime;
       const currentTime = Math.floor(rawTime * 1000);
       const duration = Math.floor(audioManager.duration * 1000) || statusStore.duration;
+      this.updateScrobbleProgress(currentTime);
       useAutomixManager().updateAutomixMonitoring();
       // 计算歌词索引
       const songId = musicStore.playSong?.id;
       const offset = statusStore.getSongOffset(songId);
       const useYrc = !!(settingStore.showWordLyrics && musicStore.songLyric.yrcData?.length);
-      let rawLyrics: LyricLine[] = [];
+      let rawLyrics: LyricLine[];
       if (useYrc) {
         rawLyrics = toRaw(musicStore.songLyric.yrcData);
       } else {
@@ -986,6 +1086,7 @@ class PlayerController {
     const songManager = useSongManager();
     // 先暂停当前播放
     const audioManager = useAudioManager();
+    void this.scrobbleCurrentSong();
     // 立即显示加载状态
     statusStore.playLoading = true;
     audioManager.stop();
@@ -1196,6 +1297,9 @@ class PlayerController {
       statusStore.shuffleMode = "off";
     }
     if (statusStore.personalFmMode) statusStore.personalFmMode = false;
+    if (musicStore.playSong.id && (!song || musicStore.playSong.id !== song.id)) {
+      void this.scrobbleCurrentSong();
+    }
     // 确定播放索引
     if (song && song.id) {
       const newIndex = processedData.findIndex((s) => s.id === song.id);
@@ -1229,6 +1333,7 @@ class PlayerController {
     const musicStore = useMusicStore();
     const audioManager = useAudioManager();
     // 重置状态
+    void this.scrobbleCurrentSong();
     audioManager.stop();
     statusStore.resetPlayStatus();
     musicStore.resetMusicData();
@@ -1287,6 +1392,7 @@ class PlayerController {
       const { playList } = dataStore;
       // 若超出播放列表
       if (index >= playList.length) return;
+      void this.scrobbleCurrentSong();
       // 先停止当前播放
       audioManager.stop();
       // 相同歌曲且需要播放
@@ -1340,6 +1446,7 @@ class PlayerController {
     dataStore.setPlayList(newPlaylist);
     // 若为当前播放
     if (isCurrentPlay) {
+      void this.scrobbleCurrentSong();
       this.playSong({ autoPlay: statusStore.playStatus });
     }
   }

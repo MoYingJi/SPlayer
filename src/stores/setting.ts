@@ -296,6 +296,10 @@ export interface SettingState {
   realIP: string;
   /** 是否打卡歌曲 */
   scrobbleSong: boolean;
+  /** 听歌打卡阈值比例（百分比） */
+  scrobbleThresholdRatio: number;
+  /** 听歌打卡阈值时长（秒） */
+  scrobbleThresholdSeconds: number;
   /** 动态封面 */
   dynamicCover: boolean;
   /** 是否使用 keep-alive */
@@ -551,6 +555,8 @@ export const useSettingStore = defineStore("setting", {
     smtcOpen: true,
     playSongDemo: false,
     scrobbleSong: false,
+    scrobbleThresholdRatio: 50,
+    scrobbleThresholdSeconds: 240,
     dynamicCover: false,
     lyricFontSizeMode: "adaptive",
     lyricFontSize: 46,
