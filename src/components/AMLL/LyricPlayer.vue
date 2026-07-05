@@ -216,13 +216,25 @@ onMounted(() => {
   }
 });
 
-// 组件卸载时清理
-onUnmounted(() => {
+let disposeTimer: ReturnType<typeof setTimeout> | null = null;
+
+onBeforeUnmount(() => {
   const player = playerRef.value;
   if (player) {
     player.removeEventListener("line-click", lineClickHandler);
     player.removeEventListener("line-contextmenu", lineContextMenuHandler);
-    player.dispose();
+    // 延迟销毁
+    disposeTimer = setTimeout(() => {
+      player.dispose();
+      disposeTimer = null;
+    }, 500);
+  }
+});
+
+onUnmounted(() => {
+  if (disposeTimer) {
+    clearTimeout(disposeTimer);
+    disposeTimer = null;
   }
 });
 
@@ -298,15 +310,18 @@ watchEffect(() => {
 });
 
 // 当前播放时间
-watch(() => props.currentTime, () => {
-  if (props.currentTime !== undefined) {
-    if (ignoredSeekTime.value !== null && props.currentTime === ignoredSeekTime.value) {
-      ignoredSeekTime.value = null;
-      return;
+watch(
+  () => props.currentTime,
+  () => {
+    if (props.currentTime !== undefined) {
+      if (ignoredSeekTime.value !== null && props.currentTime === ignoredSeekTime.value) {
+        ignoredSeekTime.value = null;
+        return;
+      }
+      playerRef.value?.setCurrentTime(props.currentTime);
     }
-    playerRef.value?.setCurrentTime(props.currentTime);
-  }
-});
+  },
+);
 
 // 外部 seek 标记
 watch(
@@ -328,7 +343,7 @@ watch(
     if (ignoredSeekTime.value !== null && props.currentTime !== ignoredSeekTime.value) {
       ignoredSeekTime.value = null;
     }
-  }
+  },
 );
 
 // 渐变宽度
