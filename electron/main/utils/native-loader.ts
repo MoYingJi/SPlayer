@@ -2,8 +2,32 @@ import { app } from "electron";
 import { createRequire } from "module";
 import path from "path";
 import { processLog } from "../logger";
+import fs from "node:fs";
 
 const requireNative = createRequire(import.meta.url);
+
+export function resolveNativeModulePath(fileName: string, devDirName: string) {
+  if (!app.isPackaged) {
+    return path.join(app.getAppPath(), "native", devDirName, fileName);
+  }
+
+  const customNativeModulePath = process.env.SPLAYER_NATIVE_MODULE_PATH;
+  if (customNativeModulePath) {
+    return path.join(customNativeModulePath, fileName);
+  }
+
+  const defaultPath = path.join(process.resourcesPath, "native", fileName);
+  if (fs.existsSync(defaultPath)) {
+    return defaultPath;
+  }
+
+  const fallbackPath = path.join(path.dirname(app.getAppPath()), "native", fileName);
+  if (fs.existsSync(fallbackPath)) {
+    return fallbackPath;
+  }
+
+  throw new Error(`[NativeLoader] 无法找到 ${fileName}，请确保已正确打包原生插件。`);
+}
 
 /**
  * 加载一个原生插件
@@ -11,16 +35,7 @@ const requireNative = createRequire(import.meta.url);
  * @param devDirName 开发环境下的目录名 (例如: "external-media-integration")，必须位于项目根目录的 native/ 下
  */
 export function loadNativeModule(fileName: string, devDirName: string) {
-  let nativeModulePath: string;
-
-  if (app.isPackaged) {
-    nativeModulePath = path.join(process.resourcesPath, "native", fileName);
-  } else {
-    // 适配 tools 模块的路径结构 (native/tools/tools.node)
-    // 其他模块可能是 (native/xxx/xxx.node) 或者 (native/xxx/index.node)
-    // 这里简单约定 devDirName 就是 native 下的一级目录名
-    nativeModulePath = path.join(process.cwd(), "native", devDirName, fileName);
-  }
+  const nativeModulePath = resolveNativeModulePath(fileName, devDirName);
 
   try {
     return requireNative(nativeModulePath);

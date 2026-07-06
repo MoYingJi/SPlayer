@@ -9,6 +9,7 @@ import { MusicMetadataService } from "../services/MusicMetadataService";
 import { useStore } from "../store";
 import { chunkArray } from "../utils/helper";
 import { processMusicList } from "../utils/format";
+import { resolveNativeModulePath } from "../utils/native-loader";
 
 /** 本地音乐服务 */
 const localMusicService = new LocalMusicService();
@@ -24,19 +25,12 @@ const normalizeAnalysisKey = (filePath: string) => {
   return process.platform === "win32" ? p.toLowerCase() : p;
 };
 
-const resolveToolsNativeModulePath = () => {
-  if (app.isPackaged) {
-    return join(process.resourcesPath, "native", "tools.node");
-  }
-  return join(process.cwd(), "native", "tools", "tools.node");
-};
-
 const runToolsJobInWorker = async (payload: Record<string, unknown>) => {
   const worker = new Worker(new URL("./workers/audio-analysis.worker.js", import.meta.url), {});
 
   try {
     const jobType = typeof payload.type === "string" ? payload.type : "unknown";
-    const nativeModulePath = resolveToolsNativeModulePath();
+    const nativeModulePath = resolveNativeModulePath("tools.node", "tools");
     await access(nativeModulePath).catch(() => {
       ipcLog.warn(`[AudioAnalysis] tools.node 不存在: ${nativeModulePath}`);
       throw new Error("TOOLS_NATIVE_MODULE_MISSING");
