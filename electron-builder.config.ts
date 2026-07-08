@@ -20,11 +20,13 @@ const config: Configuration = {
     "!electron.vite.config.{js,ts,mjs,cjs}",
     "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}",
     "!{.env,.env.*,.npmrc,pnpm-lock.yaml}",
+    "!node_modules/@neteasecloudmusicapienhanced/api/public",
+    "!node_modules/better-sqlite3/{deps,src,build/deps,build/Release/obj}/**",
   ],
   // 仅打包部分 Electron 语言包
   electronLanguages: ["zh-CN"],
   // 哪些文件将不会被压缩，而是解压到构建目录
-  asarUnpack: ["public/**"],
+  asarUnpack: ["public/**", "node_modules/**/*.so*"],
   // 将原生插件作为外部资源复制
   extraResources: [
     {

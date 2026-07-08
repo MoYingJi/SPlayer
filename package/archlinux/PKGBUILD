@@ -113,7 +113,9 @@ build() {
     local electronDist="/usr/lib/electron${_electronversion}"
     NODE_ENV=production     pnpm run build
     NODE_ENV=production     pnpm -c exec "electron-builder --linux dir -c.electronDist=${electronDist} --config electron-builder.config.ts"
+
     rm -rf "${srcdir}/splayer/dist/linux-"*/resources/app.asar.unpacked/node_modules/font-list/libs/{darwin,win32}
+    rm -rf "${srcdir}/splayer/dist/linux-"*/resources/app.asar.unpacked/node_modules/@img/sharp-libvips-linux-*/
 }
 
 package() {
