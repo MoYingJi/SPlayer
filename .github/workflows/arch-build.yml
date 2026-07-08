@@ -1,0 +1,45 @@
+name: Arch Build
+
+on:
+  push:
+    branches:
+      - legacy-continue
+    paths:
+      - "src/**"
+      - "web/**"
+      - "electron/**"
+      - "public/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "electron-builder.config.ts"
+      - "electron.vite.config.ts"
+      - "tsconfig*.json"
+      - ".env.example"
+      - "Dockerfile"
+      - "docker-compose.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Run docker
+        uses: addnab/docker-run-action@v3
+        with:
+          image: archlinux:base-devel
+          shell: bash
+          options: |
+            -v ${{ github.workspace }}:/work
+            -w /work
+          run: |
+            cd package/archlinux
+            source workflow.sh
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: SPlayer-Arch-Build
+          path: package/archlinux/*.pkg.tar.*

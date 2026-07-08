@@ -102,8 +102,12 @@ impl ProgressTracker {
                 transferred_bytes: current as f64,
                 total_bytes: total as f64,
             };
-            self.callback
+            let status = self
+                .callback
                 .call(Ok(progress), ThreadsafeFunctionCallMode::NonBlocking);
+            if status != Status::Ok {
+                eprintln!("[Download] 进度回调发送失败: {status:?}");
+            }
         }
     }
 
@@ -113,8 +117,12 @@ impl ProgressTracker {
             transferred_bytes: self.total_size as f64,
             total_bytes: self.total_size as f64,
         };
-        self.callback
+        let status = self
+            .callback
             .call(Ok(progress), ThreadsafeFunctionCallMode::NonBlocking);
+        if status != Status::Ok {
+            eprintln!("[Download] 完成回调发送失败: {status:?}");
+        }
     }
 }
 
@@ -148,7 +156,10 @@ pub async fn write_music_metadata(
     let cover_data = if let Some(path) = cover_path {
         match tokio::fs::read(&path).await {
             Ok(bytes) => Some(bytes::Bytes::from(bytes)),
-            Err(_) => None,
+            Err(e) => {
+                eprintln!("[Metadata] 读取封面失败，继续写入基础标签。path={path}, err={e}");
+                None
+            }
         }
     } else {
         None
@@ -225,7 +236,7 @@ impl DownloadTask {
                 referer,
                 on_progress,
             )
-            .await?;
+                .await?;
         } else {
             println!("[Download] Mode: Simple Stream");
             download_simple_stream(
@@ -237,7 +248,7 @@ impl DownloadTask {
                 referer,
                 on_progress,
             )
-            .await?;
+                .await?;
         }
 
         if let Some(meta) = metadata {
@@ -272,13 +283,18 @@ async fn detect_content_length(
         head_req = head_req.header("Referer", r);
     }
 
-    if let Ok(head_resp) = head_req.send().await {
-        let version = head_resp.version();
-        if let Some(len) = head_resp.content_length() {
-            // Only accept if length > 0. If 0, fallback to Range probe.
-            if len > 0 {
-                return (len, Some(version));
+    match head_req.send().await {
+        Ok(head_resp) => {
+            let version = head_resp.version();
+            if let Some(len) = head_resp.content_length() {
+                // Only accept if length > 0. If 0, fallback to Range probe.
+                if len > 0 {
+                    return (len, Some(version));
+                }
             }
+        }
+        Err(e) => {
+            eprintln!("[Download] HEAD 探测失败，将回退到 Range 探测。url={url}, err={e}");
         }
     }
 
@@ -288,17 +304,22 @@ async fn detect_content_length(
         range_req = range_req.header("Referer", r);
     }
 
-    if let Ok(range_resp) = range_req.send().await {
-        let version = range_resp.version();
-        if range_resp.status() == reqwest::StatusCode::PARTIAL_CONTENT {
-            if let Some(val) = range_resp.headers().get(reqwest::header::CONTENT_RANGE) {
-                if let Ok(s) = val.to_str() {
-                    // bytes 0-0/12345
-                    if let Some(size_str) = s.rsplit('/').next() {
-                        return (size_str.parse().unwrap_or(0), Some(version));
+    match range_req.send().await {
+        Ok(range_resp) => {
+            let version = range_resp.version();
+            if range_resp.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+                if let Some(val) = range_resp.headers().get(reqwest::header::CONTENT_RANGE) {
+                    if let Ok(s) = val.to_str() {
+                        // bytes 0-0/12345
+                        if let Some(size_str) = s.rsplit('/').next() {
+                            return (size_str.parse().unwrap_or(0), Some(version));
+                        }
                     }
                 }
             }
+        }
+        Err(e) => {
+            eprintln!("[Download] Range 探测失败，将使用未知长度流式下载。url={url}, err={e}");
         }
     }
 
@@ -354,11 +375,15 @@ async fn download_simple_stream(
         file.flush().await.context("Flush failed")?;
         Ok(())
     }
-    .await;
+        .await;
 
     if let Err(e) = process_result {
         drop(file);
-        let _ = tokio::fs::remove_file(&file_path).await;
+        if let Err(remove_err) = tokio::fs::remove_file(&file_path).await {
+            eprintln!(
+                "[Download] 简单流下载失败后删除临时文件失败。path={file_path}, err={remove_err}"
+            );
+        }
         return Err(e);
     }
 
@@ -424,11 +449,15 @@ async fn download_range_stream(
         file.flush().await.context("Flush failed")?;
         Ok(())
     }
-    .await;
+        .await;
 
     if let Err(e) = process_result {
         drop(file);
-        let _ = tokio::fs::remove_file(&file_path).await;
+        if let Err(remove_err) = tokio::fs::remove_file(&file_path).await {
+            eprintln!(
+                "[Download] 分块下载失败后删除临时文件失败。path={file_path}, err={remove_err}"
+            );
+        }
         return Err(Error::from_reason(format!("Range download failed: {e}")));
     }
 
@@ -510,17 +539,36 @@ async fn fetch_cover(client: &reqwest::Client, meta: &SongMetadata) -> Option<by
         return None;
     }
 
-    let resp = tokio::time::timeout(
+    let resp = match tokio::time::timeout(
         std::time::Duration::from_secs(TIMEOUT_SECS),
         client.get(cover_url).send(),
     )
-    .await
-    .ok()?
-    .ok()?;
+        .await
+    {
+        Ok(Ok(resp)) => resp,
+        Ok(Err(e)) => {
+            eprintln!("[Metadata] 封面请求失败，跳过封面写入。url={cover_url}, err={e}");
+            return None;
+        }
+        Err(_) => {
+            eprintln!("[Metadata] 封面请求超时，跳过封面写入。url={cover_url}");
+            return None;
+        }
+    };
 
     if resp.status().is_success() {
-        resp.bytes().await.ok()
+        match resp.bytes().await {
+            Ok(bytes) => Some(bytes),
+            Err(e) => {
+                eprintln!("[Metadata] 封面读取失败，跳过封面写入。url={cover_url}, err={e}");
+                None
+            }
+        }
     } else {
+        eprintln!(
+            "[Metadata] 封面响应状态异常，跳过封面写入。url={cover_url}, status={}",
+            resp.status()
+        );
         None
     }
 }

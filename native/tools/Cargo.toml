@@ -36,8 +36,14 @@ md5 = "0.8.0"
 rusqlite = { version = "0.38.0", features = ["bundled"] }
 image = "0.25.9"
 crossbeam-channel = "0.5.15"
-reqwest = { version = "0.13.1", features = ["stream", "rustls-native-certs"] }
 symphonia = { version = "0.5", features = ["mp3", "flac", "aac", "isomp4", "alac", "vorbis", "wav"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+reqwest = { version = "0.13.1", features = ["stream", "rustls-native-certs"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+reqwest = { version = "0.13.1", default-features = false, features = ["native-tls", "charset", "http2", "system-proxy", "stream"] }
+
 
 [build-dependencies]
 napi-build = "2"

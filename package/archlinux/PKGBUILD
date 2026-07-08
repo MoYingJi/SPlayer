@@ -1,0 +1,136 @@
+# 取自 https://aur.archlinux.org/packages/splayer-git，有修改
+# 感谢 zxp19821005
+# 我不会写，我乱改的（
+
+pkgname=splayer-legacy-continue-git
+pkgver=r1926.75ac143
+_electronversion=43
+pkgrel=1
+pkgdesc="某音乐播放器的私房菜 (Use system-wide electron) Fork of SPlayer"
+arch=('x86_64' 'aarch64')
+_ghurl="https://github.com/MoYingJi/SPlayer"
+license=("AGPL-3.0-only")
+conflicts=('splayer')
+provides=("splayer=${pkgver%.r*}")
+depends=(
+    "electron${_electronversion}"
+    'libvips'
+    'openssl'
+    'dbus'
+)
+optdepends=(
+    'mpv: for mpv playback engine support'
+)
+makedepends=(
+    'git'
+    'nodejs>=24'
+    'pnpm>=11'
+    'rust'
+    'python'
+    'make'
+    'gcc'
+    'gendesk'
+    'curl'
+    'jq'
+)
+source=(
+    'splayer::git+https://github.com/MoYingJi/SPlayer.git#branch=legacy-continue'
+    'splayer.sh'
+)
+sha256sums=('SKIP' 'SKIP')
+
+pkgver() {
+    cd "${srcdir}/splayer"
+    set -o pipefail
+    git describe --long --tags --abbrev=7 | sed 's/\([^-]*-g\)/r\1/;s/-/./g;s/v//g' ||
+    printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+_get_electron_version() {
+    _elec_ver=$(jq -r '.devDependencies["electron"] // .dependencies["electron"]' "${srcdir}/splayer/package.json" | tr -d '^')
+    _main_ver=$(echo "${_elec_ver}" | cut -d. -f1)
+    echo -e "The electron version is: \033[1;31m${_main_ver}\033[0m"
+}
+
+prepare() {
+    cd "${srcdir}/splayer"
+    _get_electron_version
+
+    sed -i -e "
+        s/@electronversion@/${_electronversion}/g
+        s/@appname@/splayer/g
+        s/@runname@/app.asar/g
+        s/@cfgdirname@/SPlayer/g
+        s/@options@/env ELECTRON_OZONE_PLATFORM_HINT=auto/g
+    " "${srcdir}/splayer.sh"
+
+    gendesk -q -f -n \
+        --pkgname="top.imsyy.SPlayer" \
+        --pkgdesc="${pkgdesc}" \
+        --comment="${pkgdesc}" \
+        --icon="top.imsyy.SPlayer" \
+        --mimetypes="x-scheme-handler/orpheus" \
+        --categories="Audio;Music;AudioVideo" \
+        --name="SPlayer" \
+        --exec="splayer %U" \
+        --custom="StartupWMClass=top.imsyy.SPlayer"
+
+    export ELECTRON_SKIP_BINARY_DOWNLOAD=1
+    export SYSTEM_ELECTRON_VERSION="$(electron${_electronversion} -v | sed 's/v//g')"
+    export CARGO_HOME="${srcdir}/.cargo"
+    HOME="${srcdir}/.electron-gyp"
+    {
+        echo -e '\n'
+        #echo 'build_from_source=true'
+        echo 'link-workspace-packages=true'
+        echo 'fetch-retry-maxtimeout=10000'
+        echo "cache-dir=${srcdir}/.pnpm_cache"
+        echo "store-dir=${srcdir}/.pnpm_store"
+        echo "virtual-store-dir=${srcdir}/.pnpm_store"
+        echo "shamefully-hoist=true"
+        echo "virtual-store-dir-max-length=80"
+        echo "node-linker=hoisted"
+        echo "network-concurrency=32"
+    } >> .npmrc
+
+    if [ ! -f .env ]; then
+        cp .env.example .env
+        echo "VITE_BUILD_TYPE=dev" >> .env
+    else
+        echo ".env file already exists. Skipping the copy step."
+    fi
+
+    pnpm remove --save-dev @electron-toolkit/utils
+    sed -i "s/\"electron\": \"[^\"]*\"/\"electron\": \"${SYSTEM_ELECTRON_VERSION}\"/g" package.json
+    NODE_ENV=development    pnpm install
+    NODE_ENV=development    pnpm add -w object-inspect side-channel-list side-channel-map side-channel-weakmap
+}
+
+build() {
+    cd "${srcdir}/splayer"
+    export CARGO_HOME="${srcdir}/.cargo"
+    export PATH="${CARGO_HOME}/bin:${PATH}"
+    local electronDist="/usr/lib/electron${_electronversion}"
+    NODE_ENV=production     pnpm run build
+    NODE_ENV=production     pnpm -c exec "electron-builder --linux dir -c.electronDist=${electronDist} --config electron-builder.config.ts"
+    rm -rf "${srcdir}/splayer/dist/linux-"*/resources/app.asar.unpacked/node_modules/font-list/libs/{darwin,win32}
+}
+
+package() {
+    install -Dm755 "${srcdir}/splayer.sh" "${pkgdir}/usr/bin/splayer"
+    install -Dm644 "${srcdir}/splayer/dist/linux-"*/resources/app.asar -t "${pkgdir}/usr/lib/splayer"
+    if find "${srcdir}/splayer/dist/linux-"*"/resources" -mindepth 1 -maxdepth 1 -type d | read; then
+        for subdir in "${srcdir}/splayer/dist/linux-"*"/resources/"*; do
+            if [ -d "${subdir}" ]; then
+                cp -Pr --no-preserve=ownership "${subdir}" "${pkgdir}/usr/lib/splayer"
+            fi
+        done
+    fi
+    _icon_sizes=(16x16 32x32 96x96 192x192 256x256 512x512)
+    for _icons in "${_icon_sizes[@]}";do
+        install -Dm644 "${srcdir}/splayer/public/icons/favicon-${_icons}.png" \
+            "${pkgdir}/usr/share/icons/hicolor/${_icons}/apps/top.imsyy.SPlayer.png"
+    done
+    install -Dm644 "${srcdir}/splayer/top.imsyy.SPlayer.desktop" -t "${pkgdir}/usr/share/applications"
+    install -Dm644 "${srcdir}/splayer/LICENSE" -t "${pkgdir}/usr/share/licenses/${pkgname}"
+}
