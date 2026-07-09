@@ -17,6 +17,7 @@ depends=(
     'libvips'
     'openssl'
     'dbus'
+    'fontconfig'
 )
 optdepends=(
     'mpv: for mpv playback engine support'
@@ -27,8 +28,6 @@ makedepends=(
     'pnpm>=11'
     'rust'
     'python'
-    'make'
-    'gcc'
     'gendesk'
     'curl'
     'jq'

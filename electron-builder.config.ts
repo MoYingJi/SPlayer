@@ -20,6 +20,18 @@ const config: Configuration = {
     "!electron.vite.config.{js,ts,mjs,cjs}",
     "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}",
     "!{.env,.env.*,.npmrc,pnpm-lock.yaml}",
+    // 通用优化
+    "!node_modules/**/test{s,}/**",
+    "!node_modules/**/__{tests,test_sinks,mocks}__/**",
+    "!node_modules/**/docs/**",
+    "!node_modules/**/example{s,}/**",
+    "!node_modules/**/coverage/**",
+    "!node_modules/**/.github/**",
+    "!node_modules/**/*.d.ts.map",
+    "!node_modules/**/*.js.map",
+    "!node_modules/**/*.cjs.map",
+    "!node_modules/**/*.mjs.map",
+    // 定向优化
     "!node_modules/@neteasecloudmusicapienhanced/api/public",
     "!node_modules/better-sqlite3/{deps,src,build/deps,build/Release/obj}/**",
   ],

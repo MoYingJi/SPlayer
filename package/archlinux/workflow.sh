@@ -10,7 +10,7 @@ chown -R builder:builder .
 
 sudo="sudo --set-home --user builder"
 
-pacman -Syu
+pacman -Syu --noconfirm
 
 # 查找 /etc/makepkg.conf 并去除 debug 选项
 # https://github.com/Neboer/archlinuxus/blob/main/prepare-arch-env/prepare-makepkg.sh
