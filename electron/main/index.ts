@@ -64,6 +64,13 @@ class MainProcess {
     app.commandLine.appendSwitch("disable-renderer-backgrounding");
     app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 
+    // 启用 SharedArrayBuffer（FFmpeg WASM 引擎需要）
+    // Electron 43 (Chromium 134) 起，webSecurity:false 会让 crossOriginIsolated 始终为 false，
+    // 即使通过 onHeadersReceived 注入 COOP/COEP 也无法生效，导致 SharedArrayBuffer 不可用。
+    // 该 feature flag 在 Chromium 中显式放开 SAB 的使用限制，不依赖 crossOriginIsolated。
+    // 见 https://chromestatus.com/feature/5620116169199616
+    app.commandLine.appendSwitch("enable-features", "SharedArrayBuffer");
+
     // 程序单例锁
     initSingleLock();
     // 监听应用事件
