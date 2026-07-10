@@ -8,7 +8,7 @@ _electronversion=43
 pkgrel=1
 pkgdesc="某音乐播放器的私房菜 (Use system-wide electron) Fork of SPlayer"
 arch=('x86_64' 'aarch64')
-_ghurl="https://github.com/MoYingJi/SPlayer"
+url='https://github.com/MoYingJi/SPlayer'
 license=("AGPL-3.0-only")
 conflicts=('splayer')
 provides=("splayer=${pkgver%.r*}")

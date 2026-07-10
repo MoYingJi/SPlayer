@@ -642,7 +642,7 @@ class PlayerController {
     try {
       await scrobbleNetease(song.id, sourceid, playedSeconds);
       this.hasScrobbledCurrentSong = true;
-      console.log("听歌打卡成功", { id: song.id, sourceid, playedSeconds, thresholdSeconds });
+      console.info("听歌打卡成功", { id: song.id, sourceid, playedSeconds, thresholdSeconds });
     } catch (error) {
       console.error("听歌打卡失败:", error);
     }
@@ -1528,7 +1528,7 @@ class PlayerController {
     const statusStore = useStatusStore();
     const { enable, waitSongEnd, remainTime } = statusStore.autoClose;
     if (enable && waitSongEnd && remainTime <= 0) {
-      console.log("🔄 执行自动关闭");
+      console.info("🔄 执行自动关闭");
       this.pause();
       statusStore.autoClose.enable = false;
       // 重置时间

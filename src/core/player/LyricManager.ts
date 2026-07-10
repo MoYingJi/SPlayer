@@ -584,18 +584,30 @@ class LyricManager {
       },
     };
 
-    const lrcData = stripLyricMetadata(lyricData.lrcData || [], options);
-    let yrcData = lyricData.yrcData || [];
-
     // usingTTMLLyric 未传入时从 lyricData 推断（预加载场景）
     const isTTML = usingTTMLLyric ?? false;
-    if (!isTTML || settingStore.enableExcludeLyricsTTML) {
-      yrcData = stripLyricMetadata(yrcData, options);
+
+    const needsStripLrc = lyricData.lrcData && lyricData.lrcData.length > 0;
+    const needsStripYrc =
+      lyricData.yrcData &&
+      lyricData.yrcData.length > 0 &&
+      (!isTTML || settingStore.enableExcludeLyricsTTML);
+
+    if (needsStripLrc || needsStripYrc) {
+      console.groupCollapsed(`[LyricManager] 处理歌词排除: ${name} - ${artistNames.join(", ")}`);
+      const lrcData = stripLyricMetadata(lyricData.lrcData || [], options);
+      const yrcData = stripLyricMetadata(lyricData.yrcData || [], options);
+      console.groupEnd();
+
+      return {
+        lrcData,
+        yrcData,
+      };
     }
 
     return {
-      lrcData,
-      yrcData,
+      lrcData: lyricData.lrcData || [],
+      yrcData: lyricData.yrcData || [],
     };
   }
 

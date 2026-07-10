@@ -250,7 +250,7 @@ function findHeaderCutoff(
     if (strict) status = "✅ STRICT";
     else if (weak) status = "⚠️ WEAK";
 
-    console.log(`Line [${i}]: "${text}" | Result: ${status}`);
+    console.info(`Line [${i}]: "${text}" | Result: ${status}`);
 
     if (!strict && !weak) {
       break;
@@ -297,7 +297,7 @@ function findFooterCutoff(
     if (strict) status = "✅ STRICT";
     else if (weak) status = "⚠️ WEAK";
 
-    console.log(`Line [${i}]: "${text}" | Result: ${status}`);
+    console.info(`Line [${i}]: "${text}" | Result: ${status}`);
 
     if (!strict && !weak) {
       break;
@@ -338,7 +338,7 @@ export function stripLyricMetadata(
         const hasAnyArtist = artists.some((artist) => lowerText.includes(artist.toLowerCase()));
 
         if (hasAnyArtist) {
-          console.log(
+          console.info(
             `[LyricStripper] 在第一行匹配到歌曲元数据: "${firstLineText}" (Title: ${title}, Artists: ${artists.join(", ")})`,
           );
           scanStartIndex = 1;
@@ -405,7 +405,7 @@ export function stripLyricMetadata(
   }
 
   const newLength = endIdx - startIdx;
-  console.log(`[LyricStripper] 清理完成，总行数从 ${totalLines} 变为 ${newLength}`);
+  console.info(`[LyricStripper] 清理完成，总行数从 ${totalLines} 变为 ${newLength}`);
 
   return lines.slice(startIdx, endIdx);
 }

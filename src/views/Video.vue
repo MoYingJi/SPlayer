@@ -339,8 +339,6 @@ onDeactivated(() => {
 });
 
 onMounted(() => {
-  console.log(11);
-
   closeMusic();
   // 初始化播放器
   initPlayer();

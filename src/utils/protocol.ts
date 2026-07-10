@@ -40,7 +40,7 @@ export const handleProtocolUrl = (url: string) => {
 export const handleOpenOrpheus = async (url: string) => {
   const data = parseOrpheus(url);
   if (!data) return;
-  console.log("🚀 Open Orpheus:", data);
+  console.info("🚀 Open Orpheus:", data);
 
   if (data.cmd === "play" && data.type === "song") {
     const player = usePlayerController();
@@ -48,7 +48,7 @@ export const handleOpenOrpheus = async (url: string) => {
     const song = formatSongsList(result.songs)[0];
     player.addNextSong(song, true);
   } else {
-    console.log("❌ Unsupported Command or Type:", data);
+    console.error("❌ Unsupported Command or Type:", data);
   }
 };
 
