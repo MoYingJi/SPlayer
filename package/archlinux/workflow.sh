@@ -32,4 +32,6 @@ pacman -Syu --noconfirm
 
 echo ::endgroup::
 
-$sudo makepkg --syncdeps --noconfirm
+PACKAGER=${PACKAGER:-"MoYingJi <moyingjiaw@outlook.com>"}
+
+$sudo env PACKAGER="$PACKAGER" makepkg --syncdeps --noconfirm

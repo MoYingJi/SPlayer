@@ -13,8 +13,18 @@ const config: Configuration = {
   // 包含在最终应用程序构建中的文件列表
   // 使用通配符 ! 表示排除不需要的文件
   files: [
-    "public/**",
     "out/**",
+    "public/**",
+    // 排除 public/ 中已被 out/renderer/ 覆盖的重复资源
+    "!public/fonts/**",
+    "!public/images/**",
+    "!public/wasm/**",
+    "!public/icons/favicon*",
+    "!public/icons/icon.icns",
+    "!public/icons/logo*",
+    "!public/robots.txt",
+    "!public/logo.ico",
+    // 排除不需要的配置文件和源码
     "!**/.vscode/*",
     "!src/*",
     "!electron.vite.config.{js,ts,mjs,cjs}",
@@ -38,7 +48,8 @@ const config: Configuration = {
   // 仅打包部分 Electron 语言包
   electronLanguages: ["zh-CN"],
   // 哪些文件将不会被压缩，而是解压到构建目录
-  asarUnpack: ["public/**", "node_modules/**/*.so*"],
+  // 仅 tray/thumbar 图标需要解包（主进程 nativeImage.createFromPath 需要真实文件路径）
+  asarUnpack: ["public/icons/tray/**", "public/icons/thumbar/**", "node_modules/**/*.so*"],
   // 将原生插件作为外部资源复制
   extraResources: [
     {
