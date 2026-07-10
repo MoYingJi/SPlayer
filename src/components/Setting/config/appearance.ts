@@ -221,7 +221,7 @@ export const useAppearanceSettings = (): SettingConfig => {
                     min: 30,
                     max: 70,
                     step: 1,
-                    marks: { 50: "默认" },
+                    marks: { 50: "50%" },
                     formatTooltip: (v) => `${v}%`,
                     value: computed({
                       get: () => settingStore.playerStyleRatio,
