@@ -14,6 +14,7 @@ const config: Configuration = {
   // 使用通配符 ! 表示排除不需要的文件
   files: [
     "out/**",
+    "!out/**/*.gz",
     "public/**",
     // 排除 public/ 中已被 out/renderer/ 覆盖的重复资源
     "!public/fonts/**",
@@ -37,13 +38,14 @@ const config: Configuration = {
     "!node_modules/**/example{s,}/**",
     "!node_modules/**/coverage/**",
     "!node_modules/**/.github/**",
-    "!node_modules/**/*.d.ts.map",
-    "!node_modules/**/*.js.map",
-    "!node_modules/**/*.cjs.map",
-    "!node_modules/**/*.mjs.map",
+    "!node_modules/**/*.{d.ts,js,cjs,mjs}.map",
+    "!node_modules/**/*.d.{mts,cts}",
+    "!node_modules/**/*.{h,c}",
+    "!node_modules/**/*.md",
     // 定向优化
     "!node_modules/@neteasecloudmusicapienhanced/api/public",
     "!node_modules/better-sqlite3/{deps,src,build/deps,build/Release/obj}/**",
+    "!node_modules/better-sqlite3/build/Release/test_extension.node",
   ],
   // 仅打包部分 Electron 语言包
   electronLanguages: ["zh-CN"],
@@ -84,9 +86,9 @@ const config: Configuration = {
         target: "nsis",
       },
       // 打包版
-      {
-        target: "portable",
-      },
+      // {
+      //   target: "portable",
+      // },
     ],
     // 注册协议
     protocols: [
