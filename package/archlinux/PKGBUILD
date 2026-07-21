@@ -45,15 +45,21 @@ pkgver() {
     printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
 }
 
-_get_electron_version() {
-    _elec_ver=$(jq -r '.devDependencies["electron"] // .dependencies["electron"]' "${srcdir}/splayer/package.json" | tr -d '^')
-    _main_ver=$(echo "${_elec_ver}" | cut -d. -f1)
-    echo -e "The electron version is: \033[1;31m${_main_ver}\033[0m"
-}
-
 prepare() {
     cd "${srcdir}/splayer"
-    _get_electron_version
+
+    _elec_ver=$(jq -r '.devDependencies["electron"] // .dependencies["electron"]' "${srcdir}/splayer/package.json" | tr -d '^')
+    _main_ver=$(echo "${_elec_ver}" | cut -d. -f1)
+
+    echo -e "The electron version is: \033[1;31m${_elec_ver}\033[0m"
+
+    if [ "${_main_ver}" != "${_electronversion}" ]; then
+        echo -e "ERROR: The electron version in package.json (${_main_ver}) does not match the expected version (${_electronversion})."
+        exit 1
+    fi
+
+    export SYSTEM_ELECTRON_VERSION="$(electron${_electronversion} -v --no-sandbox | sed 's/v//g')"
+    echo -e "System electron version is: \033[1;31m${SYSTEM_ELECTRON_VERSION}\033[0m"
 
     sed -i -e "
         s/@electronversion@/${_electronversion}/g
@@ -75,7 +81,6 @@ prepare() {
         --custom="StartupWMClass=top.imsyy.SPlayer"
 
     export ELECTRON_SKIP_BINARY_DOWNLOAD=1
-    export SYSTEM_ELECTRON_VERSION="$(electron${_electronversion} -v | sed 's/v//g')"
     export CARGO_HOME="${srcdir}/.cargo"
     HOME="${srcdir}/.electron-gyp"
     {
@@ -100,7 +105,11 @@ prepare() {
     fi
 
     pnpm remove --save-dev @electron-toolkit/utils
-    sed -i "s/\"electron\": \"[^\"]*\"/\"electron\": \"${SYSTEM_ELECTRON_VERSION}\"/g" package.json
+
+    if [ -n "$SYSTEM_ELECTRON_VERSION" ]; then
+        sed -i "s/\"electron\": \"[^\"]*\"/\"electron\": \"${SYSTEM_ELECTRON_VERSION}\"/g" package.json
+    fi
+
     NODE_ENV=development    pnpm install
     NODE_ENV=development    pnpm add -w object-inspect side-channel-list side-channel-map side-channel-weakmap
 }
