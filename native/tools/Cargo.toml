@@ -33,7 +33,7 @@ jwalk = "0.8"
 lofty = "0.22"
 rayon = "1.11"
 md5 = "0.8.0"
-rusqlite = { version = "0.38.0", features = ["bundled"] }
+rusqlite = { version = "0.40.1", features = ["bundled"] }
 image = "0.25.9"
 crossbeam-channel = "0.5.15"
 symphonia = { version = "0.5", features = ["mp3", "flac", "aac", "isomp4", "alac", "vorbis", "wav"] }

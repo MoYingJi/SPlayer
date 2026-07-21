@@ -5,10 +5,6 @@ packages:
   - "native/taskbar-lyric"
   - "native/tools"
 
-overrides:
-  dmg-builder: 26.0.12
-  electron-builder-squirrel-windows: 26.0.12
-
 blockExoticSubdeps: false
 
 allowBuilds:
@@ -26,5 +22,5 @@ allowBuilds:
   wasm-pack: false
 
 minimumReleaseAgeExclude:
-  - '@neteasecloudmusicapienhanced/api@4.35.2'
-  - electron@43.1.0
+  - "@neteasecloudmusicapienhanced/api"
+  - better-sqlite3@13.0.1

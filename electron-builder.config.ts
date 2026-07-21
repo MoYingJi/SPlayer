@@ -44,14 +44,15 @@ const config: Configuration = {
     "!node_modules/**/*.md",
     // 定向优化
     "!node_modules/@neteasecloudmusicapienhanced/api/public",
-    "!node_modules/better-sqlite3/{deps,src,build/deps,build/Release/obj}/**",
-    "!node_modules/better-sqlite3/build/Release/test_extension.node",
+    "!node_modules/better-sqlite3/{deps,src}/**",
   ],
   // 仅打包部分 Electron 语言包
   electronLanguages: ["zh-CN"],
-  // 哪些文件将不会被压缩，而是解压到构建目录
-  // 仅 tray/thumbar 图标需要解包（主进程 nativeImage.createFromPath 需要真实文件路径）
-  asarUnpack: ["public/icons/tray/**", "public/icons/thumbar/**", "node_modules/**/*.so*"],
+  asar: {
+    // 哪些文件将不会被压缩，而是解压到构建目录
+    // 仅 tray/thumbar 图标需要解包（主进程 nativeImage.createFromPath 需要真实文件路径）
+    unpack: ["public/icons/tray/**", "public/icons/thumbar/**", "node_modules/**/*.so*"],
+  },
   // 将原生插件作为外部资源复制
   extraResources: [
     {
@@ -133,11 +134,13 @@ const config: Configuration = {
     // macOS 平台全局文件名模板
     artifactName: "${productName}-${version}-${arch}.${ext}",
     // 不签名
-    identity: null,
-    hardenedRuntime: false,
+    sign: {
+      identity: null,
+      hardenedRuntime: false,
+    },
     // 是否启用应用程序的 Notarization（苹果的安全审核）
     notarize: false,
-    gatekeeperAssess: false,
+    // gatekeeperAssess: false,
     darkModeSupport: true,
     category: "public.app-category.music",
     // 扩展信息，如权限描述
@@ -214,7 +217,6 @@ const config: Configuration = {
         MimeType: "x-scheme-handler/orpheus;",
       },
     },
-    syncDesktopName: true,
   },
   // AppImage 特定配置
   appImage: {
@@ -222,11 +224,11 @@ const config: Configuration = {
     artifactName: "${name}-${version}-${arch}.${ext}",
   },
   // 是否在构建之前重新编译原生模块
-  npmRebuild: false,
+  // npmRebuild: false,
   // Electron 下载镜像配置
-  electronDownload: {
-    mirror: "https://npmmirror.com/mirrors/electron/",
-  },
+  // electronDownload: {
+  //   mirror: "https://npmmirror.com/mirrors/electron/",
+  // },
   // 发布配置
   // 先留空，不自动上传
   publish: [],

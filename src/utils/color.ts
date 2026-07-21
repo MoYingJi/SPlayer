@@ -7,11 +7,16 @@ import {
   argbFromHex,
   type Theme,
 } from "@material/material-color-utilities";
-import { rgbToHex } from "@imsyy/color-utils";
 import { useSettingStore, useStatusStore } from "@/stores";
 import { argbToRgb } from "./helper";
 import { chunk } from "lodash-es";
 import { sendTaskbarThemeColor } from "@/core/player/PlayerIpc";
+
+// 将 RGB 数值转换为十六进制颜色字符串
+const rgbToHex = (r: number, g: number, b: number) => {
+  const toHex = (value: number) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+};
 
 // 单调主题（纯色模式）
 export const MONOTONOUS_THEME = {

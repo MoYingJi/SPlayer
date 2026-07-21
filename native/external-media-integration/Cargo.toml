@@ -46,7 +46,7 @@ features = ["Media_Playback", "Storage_Streams"]
 
 # Linux
 [target.'cfg(target_os = "linux")'.dependencies]
-mpris-server = "0.9"
+mpris-server = "0.10.0"
 tempfile = "3.24"
 
 # macOS
