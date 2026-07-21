@@ -141,8 +141,7 @@ const jumpSeek = (event: LyricLineMouseEvent) => {
 };
 
 // 右键歌词行
-const lineContextMenu = (_: LyricLineMouseEvent) => {
-};
+const lineContextMenu = (_: LyricLineMouseEvent) => {};
 
 // 处理歌词语言
 const processLyricLanguage = (player = lyricPlayerRef.value) => {
@@ -153,23 +152,24 @@ const processLyricLanguage = (player = lyricPlayerRef.value) => {
 
   // 遍历主歌词行
   for (const group of lyricGroups) {
-    const lyricLine = group.mainLine?.getLine();
-    const lyricLineElement = group.mainLine?.getElement();
-    if (!lyricLine || !lyricLineElement) continue;
+    for (const line of [group.mainLine, group.bgLine]) {
+      const lyricLine = line?.getLine();
+      const lyricLineElement = line?.getElement();
+      if (!lyricLine || !lyricLineElement) continue;
 
-    // 获取歌词行内容 (合并逐字歌词为一句)
-    const content = lyricLine.words.map((word) => word.word).join("");
-    // 跳过空行
-    if (!content) continue;
-    // 获取歌词语言
-    const lang = getLyricLanguage(content);
+      const content = lyricLine.words.map((w) => w.word).join("");
+      if (!content) continue;
 
-    // 为主歌词设置 lang 属性 (firstChild 获取主歌词 不为翻译和音译设置属性)
-    const lyricMainLineElement = lyricLineElement.firstChild;
-    if (lyricMainLineElement instanceof HTMLElement) {
-      lyricMainLineElement.setAttribute("lang", lang);
-    } else {
-      console.warn("无法获取歌词行元素的主歌词部分，无法设置 lang 属性", lyricLineElement);
+      // 获取歌词语言
+      const lang = getLyricLanguage(content);
+
+      // 为主歌词设置 lang 属性 (firstChild 获取主歌词 不为翻译和音译设置属性)
+      const lyricMainLineElement = lyricLineElement.firstChild;
+      if (lyricMainLineElement instanceof HTMLElement) {
+        lyricMainLineElement.setAttribute("lang", lang);
+      } else {
+        console.warn("无法获取歌词行元素的主歌词部分，无法设置 lang 属性", lyricLineElement);
+      }
     }
   }
 };
