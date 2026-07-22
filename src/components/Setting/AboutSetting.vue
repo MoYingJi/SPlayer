@@ -406,7 +406,7 @@ onMounted(() => {
   }
 }
 .update-data {
-  :deep(.n-card__content) {
+  :deep(.n-card-content) {
     flex-direction: column !important;
     align-items: normal !important;
   }
@@ -430,7 +430,7 @@ onMounted(() => {
 .link-item {
   border-radius: 8px;
   cursor: pointer;
-  :deep(.n-card__content) {
+  :deep(.n-card-content) {
     display: flex;
     padding: 12px;
   }
@@ -441,7 +441,7 @@ onMounted(() => {
 .special-contributor-item {
   border-radius: 8px;
   cursor: default;
-  :deep(.n-card__content) {
+  :deep(.n-card-content) {
     padding: 12px 16px;
   }
 }

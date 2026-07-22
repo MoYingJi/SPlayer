@@ -51,7 +51,7 @@
     "fuse.js": "^7.5.0",
     "get-port": "^7.2.0",
     "music-metadata": "^11.14.0",
-    "p-limit": "^7.3.0",
+    "p-limit": "^7.3.1",
     "ws": "^8.21.1"
   },
   "devDependencies": {
@@ -99,7 +99,7 @@
     "lodash-es": "^4.18.1",
     "marked": "^16.4.2",
     "md5": "^2.3.0",
-    "naive-ui": "2.43.2",
+    "naive-ui": "~2.44.1",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "plyr": "^3.8.4",
