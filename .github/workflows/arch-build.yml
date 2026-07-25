@@ -22,21 +22,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Run docker
-        uses: addnab/docker-run-action@v3
-        with:
-          image: archlinux:base-devel
-          shell: bash
-          options: |
-            -v ${{ github.workspace }}:/work
-            -w /work
-          run: |
-            cd package/archlinux
-            source workflow.sh
+      - name: Run build
+        working-directory: package/archlinux
+        run: bash workflow.sh
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7

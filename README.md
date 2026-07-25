@@ -1,8 +1,15 @@
 > [!CAUTION]
 >
-> 这里是我的私房菜😋，提供一些补丁和依赖升级，维持基础使用
+> 这里是我的私房菜😋，为 Archived 的 [SPlayer](https://github.com/SPlayer-Dev/SPlayer) 提供一些补丁，维持基础使用
 >
-> 仅构建 Windows x64 Setup 和 Linux x64 (pacman & system-wide electron)，仅保证 Arch Linux + KDE Plasma Wayland 下的可用性
+> - 依赖升级：使用新版本 AMLL、API、Electron，其它依赖随缘 `pnpm up`
+> - 问题修复：修复了一些已知问题！
+> - 默认设置：更改为我认为更好的！
+> - 包体优化：清理一些没用东西的同时不影响功能。为 Arch Linux 提供 system-wide electron 包
+>
+> 由于一些更改，原文档包括 README 的内容可能已经失效，暂时放在那吧
+>
+> 仅构建 Windows x64 Setup 和 Arch Linux x86_64 (Use system-wide electron)，仅保证 Arch Linux + KDE Plasma Wayland 下的可用性
 
 > [!CAUTION]
 >
