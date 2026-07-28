@@ -69,9 +69,10 @@ export const useGeneralSettings = (): SettingConfig => {
     if (!isElectron) return;
     if (!val) window.electron.ipcRenderer.send("set-bar", "none");
   };
-  // Orpheus 协议
-  const handleOrpheusChange = async (isRegistry: boolean) => {
-    sendRegisterProtocol("orpheus", isRegistry);
+
+  // 协议
+  const handleProtocolChange = async (name: string, isRegistry: boolean) => {
+    sendRegisterProtocol(name, isRegistry);
   };
 
   // --- Backup & Restore Logic (from other.ts) ---
@@ -254,7 +255,20 @@ export const useGeneralSettings = (): SettingConfig => {
               get: () => settingStore.registryProtocol.orpheus,
               set: (v) => {
                 settingStore.registryProtocol.orpheus = v;
-                handleOrpheusChange(v);
+                handleProtocolChange("orpheus", v);
+              },
+            }),
+          },
+          {
+            key: "splayerProtocol",
+            label: "通过 SPlayer 协议唤起本应用",
+            type: "switch",
+            description: "启用后可通过 splayer:// 协议唤起本应用，并跳转到对应歌曲的专辑页与详情弹窗",
+            value: computed({
+              get: () => settingStore.registryProtocol.splayer,
+              set: (v) => {
+                settingStore.registryProtocol.splayer = v;
+                handleProtocolChange("splayer", v);
               },
             }),
           },

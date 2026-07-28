@@ -198,7 +198,7 @@ const initIpc = () => {
     });
     // 协议数据
     window.electron.ipcRenderer.on("protocol-url", (_, url) => {
-      console.log("📡 Received protocol url:", url);
+      console.info("📡 Received protocol url:", url);
       handleProtocolUrl(url);
     });
     // 请求播放信息

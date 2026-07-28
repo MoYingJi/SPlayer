@@ -69,4 +69,5 @@ if (!location.hash.includes("desktop-lyric")) initIpc();
 if (isElectron && !location.hash.includes("desktop-lyric")) {
   const settings = useSettingStore();
   sendRegisterProtocol("orpheus", settings.registryProtocol.orpheus);
+  sendRegisterProtocol("splayer", settings.registryProtocol.splayer);
 }

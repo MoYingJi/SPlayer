@@ -8,7 +8,7 @@ import { processLog } from "../logger";
  */
 export const trySendCustomProtocol = (str: string): boolean => {
   try {
-    if (str.startsWith("orpheus://")) {
+    if (str.startsWith("orpheus://") || str.startsWith("splayer://")) {
       mainWindow.getWin()!.webContents.send("protocol-url", str);
       return true;
     }

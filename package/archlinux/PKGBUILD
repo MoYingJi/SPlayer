@@ -73,7 +73,7 @@ prepare() {
         --pkgdesc="${pkgdesc}" \
         --comment="${pkgdesc}" \
         --icon="top.imsyy.SPlayer" \
-        --mimetypes="x-scheme-handler/orpheus" \
+        --mimetypes="x-scheme-handler/orpheus;x-scheme-handler/splayer" \
         --categories="Audio;Music;AudioVideo" \
         --name="SPlayer" \
         --exec="splayer %U" \

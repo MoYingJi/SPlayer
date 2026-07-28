@@ -6,7 +6,7 @@ import type { SettingState } from "../setting";
 /**
  * 当前设置 Schema 版本号
  */
-export const CURRENT_SETTING_SCHEMA_VERSION = 12;
+export const CURRENT_SETTING_SCHEMA_VERSION = 13;
 
 /**
  * 迁移函数类型
@@ -196,6 +196,16 @@ export const settingMigrations: Record<number, MigrationFunction> = {
     if (!Array.isArray(servers)) return {};
     return {
       songUnlockServer: servers.filter((s) => (s.key as string) !== "gequbao"),
+    };
+  },
+  13: (state) => {
+    // 为已有用户添加 splayer 协议注册开关，默认开启
+    const oldRegistry = state.registryProtocol ?? { orpheus: false };
+    return {
+      registryProtocol: {
+        ...oldRegistry,
+        splayer: true,
+      },
     };
   },
 };
