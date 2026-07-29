@@ -495,7 +495,7 @@ const handleSheetExpand = async ({ name, expanded }: { name: number; expanded: b
 
 // 播放歌曲
 const handlePlay = () => {
-  if (currentSong.value) player.addNextSong(currentSong.value, true);
+  if (currentSong.value) player.playNow(currentSong.value);
 };
 
 onActivated(() => fetchData());

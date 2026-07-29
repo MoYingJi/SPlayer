@@ -2,20 +2,20 @@ import { toRaw } from "vue";
 import { AudioErrorCode } from "@/core/audio-player/BaseAudioPlayer";
 import { scrobble as scrobbleNetease } from "@/api/user";
 import { useDataStore, useMusicStore, useSettingStore, useStatusStore } from "@/stores";
-import type { AudioSourceType, QualityType, SongType } from "@/types/main";
+import type { AudioSourceType, PlaybackTarget, QualityType, SongType } from "@/types/main";
 import type { RepeatModeType, ShuffleModeType } from "@/types/shared/play-mode";
 import { type AudioAnalysis } from "@/types/audio/automix";
 import { calculateLyricIndex } from "@/utils/calc";
 import { getCoverColor } from "@/utils/color";
 import { isLogin } from "@/utils/auth";
 import { isElectron, isMac } from "@/utils/env";
-import { getPlayerInfoObj, getPlaySongData } from "@/utils/format";
+import { getPlayerInfoObj } from "@/utils/format";
 import { handleSongQuality, shuffleArray, sleep } from "@/utils/helper";
 import lastfmScrobbler from "@/utils/lastfmScrobbler";
 import { DJ_MODE_KEYWORDS } from "@/utils/meta";
 import { calculateProgress } from "@/utils/time";
 import type { LyricLine } from "@applemusic-like-lyrics/lyric";
-import { type DebouncedFunc, throttle } from "lodash-es";
+import { cloneDeep, type DebouncedFunc, throttle } from "lodash-es";
 import { useBlobURLManager } from "../resource/BlobURLManager";
 import { useAudioManager } from "./AudioManager";
 import { useAutomixManager } from "@/core/automix/AutomixManager";
@@ -71,11 +71,26 @@ class PlayerController {
   private scrobbleSeekPending = false;
   /** 当前曲目是否已经完成过打卡 */
   private hasScrobbledCurrentSong = false;
+  /** 当前尚未提交的播放目标 */
+  private pendingPlaybackTarget: PlaybackTarget | null = null;
+  private pendingRecordNavigation: boolean | null = null;
+  private pendingHistoryNavigationIndex: number | null = null;
+  /** 会话内实际播放导航历史 */
+  private navigationHistory: PlaybackTarget[] = [];
+  private navigationIndex = -1;
+  private readonly MAX_NAVIGATION_HISTORY = 100;
+  /** 防止新请求在异步队列提交期间使目标过期 */
+  private playbackCommitChain: Promise<void> = Promise.resolve();
+  /** 用于识别现有 UI 直接开启 FM 模式的入口 */
+  private committedPersonalFmMode: boolean;
 
   constructor() {
     // 初始化 AudioManager（会根据设置自动选择引擎）
     const audioManager = useAudioManager();
     const settingStore = useSettingStore();
+    const musicStore = useMusicStore();
+    this.committedPersonalFmMode =
+      useStatusStore().personalFmMode && musicStore.playbackSource !== "playlist";
     // 应用已保存的输出设备
     if (settingStore.playDevice) {
       audioManager.setSinkId(settingStore.playDevice).catch(console.warn);
@@ -258,6 +273,333 @@ class PlayerController {
     lyricManager.handleLyric(song);
   }
 
+  private isSameSong(first: SongType, second: SongType): boolean {
+    return (
+      first.id === second.id &&
+      first.type === second.type &&
+      first.path === second.path &&
+      first.serverId === second.serverId &&
+      first.originalId === second.originalId
+    );
+  }
+
+  private copyPlaybackTarget(target: PlaybackTarget): PlaybackTarget {
+    return {
+      ...target,
+      song: cloneDeep(toRaw(target.song)),
+    };
+  }
+
+  private getHistoryPlaybackTarget(index: number): PlaybackTarget | null {
+    const historyTarget = this.navigationHistory[index];
+    if (!historyTarget) return null;
+
+    const target = this.copyPlaybackTarget(historyTarget);
+    return target.source === "priority" || target.source === "playlist"
+      ? target
+      : { song: target.song, source: "direct" };
+  }
+
+  private rebuildCurrentPlaybackTarget(): PlaybackTarget | null {
+    const dataStore = useDataStore();
+    const musicStore = useMusicStore();
+    const statusStore = useStatusStore();
+
+    // 兼容现有入口先开启 FM 模式、再调用 playSong 的流程。
+    if (statusStore.personalFmMode && !this.committedPersonalFmMode) {
+      const fmSong = musicStore.personalFM.list[musicStore.personalFM.playIndex];
+      if (fmSong?.id) {
+        return {
+          song: fmSong,
+          source: "personal-fm",
+          personalFmIndex: musicStore.personalFM.playIndex,
+        };
+      }
+    }
+
+    const currentSong = musicStore.playSong;
+    if (!currentSong?.id) {
+      const fmSong = musicStore.personalFM.list[musicStore.personalFM.playIndex];
+      if (statusStore.personalFmMode && fmSong?.id) {
+        return {
+          song: fmSong,
+          source: "personal-fm",
+          personalFmIndex: musicStore.personalFM.playIndex,
+        };
+      }
+      const playlistSong = dataStore.playList[statusStore.playIndex];
+      return playlistSong
+        ? { song: playlistSong, source: "playlist", playlistIndex: statusStore.playIndex }
+        : null;
+    }
+
+    if (musicStore.playbackSource === "playlist") {
+      const anchorSong = dataStore.playList[statusStore.playIndex];
+      const playlistIndex =
+        anchorSong && this.isSameSong(anchorSong, currentSong)
+          ? statusStore.playIndex
+          : dataStore.playList.findIndex((song) => this.isSameSong(song, currentSong));
+      return playlistIndex >= 0
+        ? { song: currentSong, source: "playlist", playlistIndex }
+        : { song: currentSong, source: "direct" };
+    }
+
+    if (musicStore.playbackSource === "personal-fm") {
+      const anchorSong = musicStore.personalFM.list[musicStore.personalFM.playIndex];
+      const personalFmIndex =
+        anchorSong && this.isSameSong(anchorSong, currentSong)
+          ? musicStore.personalFM.playIndex
+          : musicStore.personalFM.list.findIndex((song) => this.isSameSong(song, currentSong));
+      if (personalFmIndex >= 0) {
+        return { song: currentSong, source: "personal-fm", personalFmIndex };
+      }
+      if (statusStore.personalFmMode && anchorSong?.id) {
+        return {
+          song: anchorSong,
+          source: "personal-fm",
+          personalFmIndex: musicStore.personalFM.playIndex,
+        };
+      }
+      return { song: currentSong, source: "direct" };
+    }
+
+    return { song: currentSong, source: musicStore.playbackSource };
+  }
+
+  private getPlaylistPlaybackTarget(
+    direction: 1 | -1,
+    anchorIndex: number = useStatusStore().playIndex,
+  ): PlaybackTarget | null {
+    const dataStore = useDataStore();
+    const playListLength = dataStore.playList.length;
+    if (!playListLength) return null;
+
+    let nextIndex = anchorIndex;
+    if (nextIndex < 0 || nextIndex >= playListLength) {
+      nextIndex = direction === 1 ? -1 : 0;
+    }
+    for (let attempts = 0; attempts < playListLength; attempts++) {
+      nextIndex = (nextIndex + direction + playListLength) % playListLength;
+      const song = dataStore.playList[nextIndex];
+      if (song && !this.shouldSkipSong(song)) {
+        return { song, source: "playlist", playlistIndex: nextIndex };
+      }
+    }
+    return null;
+  }
+
+  private getPreviousPlaylistTarget(): PlaybackTarget | null {
+    return this.getPlaylistPlaybackTarget(-1);
+  }
+
+  /**
+   * 获取下一实际播放目标，不修改任何状态
+   * @param autoEnd 是否由自然结束触发
+   */
+  public getNextPlaybackTarget(autoEnd: boolean = false): PlaybackTarget | null {
+    const dataStore = useDataStore();
+    const musicStore = useMusicStore();
+    const statusStore = useStatusStore();
+    const queueEntry = dataStore.peekNextSong();
+    if (queueEntry) {
+      return {
+        song: queueEntry.song,
+        source: "priority",
+        queueId: queueEntry.queueId,
+      };
+    }
+
+    const currentTarget = this.pendingPlaybackTarget ?? this.rebuildCurrentPlaybackTarget();
+    if (
+      autoEnd &&
+      statusStore.repeatMode === "one" &&
+      currentTarget &&
+      (currentTarget.source === "playlist" || currentTarget.source === "personal-fm")
+    ) {
+      return this.copyPlaybackTarget(currentTarget);
+    }
+
+    if (statusStore.personalFmMode) {
+      const personalFmIndex =
+        currentTarget?.source === "personal-fm" && currentTarget.personalFmIndex !== undefined
+          ? currentTarget.personalFmIndex + 1
+          : musicStore.personalFM.playIndex + 1;
+      const song = musicStore.personalFM.list[personalFmIndex];
+      return song ? { song, source: "personal-fm", personalFmIndex } : null;
+    }
+
+    const playlistAnchor =
+      currentTarget?.source === "playlist" ? currentTarget.playlistIndex : undefined;
+    return this.getPlaylistPlaybackTarget(1, playlistAnchor);
+  }
+
+  private async getNextPersonalFmTarget(anchorIndex: number): Promise<PlaybackTarget | null> {
+    const musicStore = useMusicStore();
+    const statusStore = useStatusStore();
+    const songManager = useSongManager();
+    for (let index = anchorIndex + 1; index < musicStore.personalFM.list.length; index++) {
+      const song = musicStore.personalFM.list[index];
+      if (song && !this.shouldSkipSong(song)) {
+        return { song, source: "personal-fm", personalFmIndex: index };
+      }
+    }
+
+    const previousList = [...musicStore.personalFM.list];
+    const previousRawList = toRaw(musicStore.personalFM.list);
+    const previousIndex = musicStore.personalFM.playIndex;
+    const previousMode = statusStore.personalFmMode;
+    if (previousList.length) {
+      musicStore.personalFM.playIndex = previousList.length - 1;
+      await songManager.initPersonalFM(true);
+    } else {
+      await songManager.initPersonalFM();
+    }
+    const fetchedList = musicStore.personalFM.list;
+    if (toRaw(fetchedList) === previousRawList || !fetchedList.length) {
+      musicStore.personalFM.list = previousList;
+      musicStore.personalFM.playIndex = previousIndex;
+      statusStore.personalFmMode = previousMode;
+      return null;
+    }
+    const nextIndex = previousList.length;
+    const nextList = [...previousList, ...fetchedList];
+    musicStore.personalFM.list = nextList;
+    let target: PlaybackTarget | null = null;
+    for (let index = nextIndex; index < nextList.length; index++) {
+      const song = nextList[index];
+      if (song && !this.shouldSkipSong(song)) {
+        target = { song, source: "personal-fm", personalFmIndex: index };
+        break;
+      }
+    }
+    musicStore.personalFM.playIndex = previousIndex;
+    statusStore.personalFmMode = previousMode;
+    return target;
+  }
+
+  private recordPlaybackNavigation(target: PlaybackTarget): void {
+    if (this.navigationIndex < this.navigationHistory.length - 1) {
+      this.navigationHistory.splice(this.navigationIndex + 1);
+    }
+    this.navigationHistory.push(this.copyPlaybackTarget(target));
+    if (this.navigationHistory.length > this.MAX_NAVIGATION_HISTORY) {
+      this.navigationHistory.splice(0, this.navigationHistory.length - this.MAX_NAVIGATION_HISTORY);
+    }
+    this.navigationIndex = this.navigationHistory.length - 1;
+  }
+
+  private async refreshNextScheduling(prefetch: boolean = true): Promise<void> {
+    const settingStore = useSettingStore();
+    const songManager = useSongManager();
+    songManager.clearPrefetch();
+    useAutomixManager().resetAutomixScheduling("MONITORING");
+    if (prefetch && settingStore.useNextPrefetch) {
+      await songManager.prefetchNextSong();
+    }
+  }
+
+  /**
+   * 提交已成功加载的播放目标
+   * @param target 播放目标
+   * @param recordNavigation 是否记录会话导航
+   * @param restoreFromHistory 是否从会话导航历史恢复
+   */
+  public async commitPlaybackTarget(
+    target: PlaybackTarget,
+    recordNavigation: boolean = true,
+    restoreFromHistory: boolean = false,
+  ): Promise<boolean> {
+    const commit = this.playbackCommitChain.then(async (): Promise<boolean> => {
+      const dataStore = useDataStore();
+      const musicStore = useMusicStore();
+      const statusStore = useStatusStore();
+      const committedTarget = this.copyPlaybackTarget(target);
+
+      if (target.source === "priority" && !restoreFromHistory) {
+        if (!target.queueId) {
+          if (
+            musicStore.playbackSource !== "priority" ||
+            !this.isSameSong(musicStore.playSong, target.song)
+          ) {
+            return false;
+          }
+        } else {
+          const queueIndex = dataStore.nextPlayQueue.findIndex(
+            (entry) => entry.queueId === target.queueId,
+          );
+          const queueEntry = dataStore.nextPlayQueue[queueIndex];
+          if (!queueEntry || !this.isSameSong(queueEntry.song, target.song)) {
+            return false;
+          }
+          try {
+            const consumed =
+              queueIndex === 0
+                ? !!(await dataStore.consumeNextSong(target.queueId))
+                : await dataStore.removeNextQueueEntry(target.queueId);
+            if (!consumed) {
+              return false;
+            }
+          } catch (error) {
+            console.error("❌ 提交临时待播项失败:", error);
+            return false;
+          }
+          try {
+            await this.refreshNextScheduling();
+          } catch (error) {
+            console.warn("⚠️ 更新下一首调度失败:", error);
+          }
+        }
+      } else if (target.source === "playlist") {
+        const indexedSong =
+          target.playlistIndex === undefined ? undefined : dataStore.playList[target.playlistIndex];
+        const playlistIndex =
+          indexedSong && this.isSameSong(indexedSong, target.song)
+            ? target.playlistIndex!
+            : dataStore.playList.findIndex((song) => this.isSameSong(song, target.song));
+        if (playlistIndex < 0) {
+          if (!restoreFromHistory) return false;
+          committedTarget.source = "direct";
+          delete committedTarget.playlistIndex;
+          statusStore.personalFmMode = false;
+        } else {
+          committedTarget.playlistIndex = playlistIndex;
+          statusStore.playIndex = playlistIndex;
+          statusStore.personalFmMode = false;
+        }
+      } else if (target.source === "personal-fm") {
+        const indexedSong =
+          target.personalFmIndex === undefined
+            ? undefined
+            : musicStore.personalFM.list[target.personalFmIndex];
+        const personalFmIndex =
+          indexedSong && this.isSameSong(indexedSong, target.song)
+            ? target.personalFmIndex!
+            : musicStore.personalFM.list.findIndex((song) => this.isSameSong(song, target.song));
+        if (personalFmIndex < 0) {
+          return false;
+        }
+        committedTarget.personalFmIndex = personalFmIndex;
+        musicStore.personalFM.playIndex = personalFmIndex;
+        statusStore.personalFmMode = true;
+      }
+
+      musicStore.playbackSource = committedTarget.source;
+      this.committedPersonalFmMode = statusStore.personalFmMode;
+      if (recordNavigation) this.recordPlaybackNavigation(committedTarget);
+      return true;
+    });
+    this.playbackCommitChain = commit.then(
+      () => undefined,
+      () => undefined,
+    );
+    try {
+      return await commit;
+    } catch (error) {
+      console.error("❌ 提交播放目标失败:", error);
+      return false;
+    }
+  }
+
   /**
    * 初始化并播放歌曲
    * @param options 配置
@@ -271,10 +613,13 @@ class PlayerController {
       crossfade?: boolean;
       crossfadeDuration?: number;
       song?: SongType;
+      target?: PlaybackTarget;
+      recordNavigation?: boolean;
     } = { autoPlay: true, seek: 0 },
-  ) {
+  ): Promise<boolean> {
     const statusStore = useStatusStore();
     const audioManager = useAudioManager();
+    await this.playbackCommitChain;
     // 重置过渡状态
     this.isTransitioning = false;
     useAutomixManager().resetNextAnalysisCache();
@@ -284,20 +629,65 @@ class PlayerController {
     this.currentRequestToken++;
     const requestToken = this.currentRequestToken;
     const { autoPlay = true, seek = 0 } = options;
-    // 要播放的歌曲对象
-    const playSongData = options.song || getPlaySongData();
-    if (!playSongData) {
+    const explicitTarget = options.target
+      ? this.copyPlaybackTarget(options.target)
+      : options.song
+        ? ({ song: options.song, source: "direct" } satisfies PlaybackTarget)
+        : null;
+    const target =
+      explicitTarget ??
+      (this.pendingPlaybackTarget && this.copyPlaybackTarget(this.pendingPlaybackTarget)) ??
+      this.rebuildCurrentPlaybackTarget();
+    if (!target) {
       statusStore.playLoading = false;
       // 初始化或无歌曲时
-      if (!statusStore.playStatus && !autoPlay) return;
-      return;
+      if (!statusStore.playStatus && !autoPlay) return false;
+      return false;
     }
+    const historyTarget = this.navigationHistory[this.navigationIndex];
+    const recordNavigation =
+      options.recordNavigation ??
+      (!explicitTarget && this.pendingRecordNavigation !== null
+        ? this.pendingRecordNavigation
+        : !!explicitTarget || !historyTarget || !this.isSameSong(historyTarget.song, target.song));
+    const historyNavigationIndex = recordNavigation ? null : this.pendingHistoryNavigationIndex;
+    const restoreFromHistory = historyNavigationIndex !== null;
+    this.pendingPlaybackTarget = target;
+    this.pendingRecordNavigation = recordNavigation;
+    if (recordNavigation) this.pendingHistoryNavigationIndex = null;
+    const playSongData = target.song;
     // Fuck DJ Mode
     if (this.shouldSkipSong(playSongData)) {
       console.log(`[Fuck DJ] Skipping: ${playSongData.name}`);
       window.$message.warning(`已跳过 DJ/抖音 歌曲: ${playSongData.name}`);
-      this.nextOrPrev("next");
-      return;
+      this.pendingPlaybackTarget = null;
+      this.pendingRecordNavigation = null;
+      this.pendingHistoryNavigationIndex = null;
+      if (target.source === "priority" && target.queueId) {
+        await this.removeNextQueueEntry(target.queueId);
+        if (useDataStore().nextPlayQueue.some((entry) => entry.queueId === target.queueId)) {
+          statusStore.playLoading = false;
+          window.$message.error("移除待播歌曲失败，请重试");
+          return false;
+        }
+        await this.nextOrPrev("next", autoPlay);
+      } else if (target.source === "playlist") {
+        const nextTarget = this.getPlaylistPlaybackTarget(1, target.playlistIndex);
+        if (nextTarget) {
+          await this.playSong({ autoPlay, seek, target: nextTarget });
+        } else {
+          window.$message.warning("播放列表中没有可播放的歌曲");
+        }
+      } else if (target.source === "personal-fm") {
+        const nextTarget = await this.getNextPersonalFmTarget(
+          target.personalFmIndex ?? useMusicStore().personalFM.playIndex,
+        );
+        if (nextTarget) await this.playSong({ autoPlay, seek, target: nextTarget });
+      } else {
+        await this.nextOrPrev("next", autoPlay, true);
+      }
+      statusStore.playLoading = false;
+      return false;
     }
     try {
       // 立即停止当前播放 (除非是 Crossfade)
@@ -312,7 +702,7 @@ class PlayerController {
         requestToken,
         { analysis: options.crossfade ? "head" : "none" },
       );
-      if (requestToken !== this.currentRequestToken) return;
+      if (requestToken !== this.currentRequestToken) return false;
       // Automix 分析应用
       const lastAnalysis = this.currentAnalysis;
       this.currentAnalysis = analysis;
@@ -333,7 +723,7 @@ class PlayerController {
         startSeek = automixParams.startSeek;
         initialRate = automixParams.initialRate;
       }
-      if (requestToken !== this.currentRequestToken) return;
+      if (requestToken !== this.currentRequestToken) return false;
       // 更新音质和音源信息
       console.log(`🎧 [${playSongData.id}] 最终播放信息:`, audioSource);
       statusStore.songQuality = audioSource.quality;
@@ -346,15 +736,45 @@ class PlayerController {
         options.crossfade ? { duration: options.crossfadeDuration ?? 5 } : undefined,
         initialRate,
       );
-      if (requestToken !== this.currentRequestToken) return;
-      // 后置处理
-      await this.afterPlaySetup(playSongData);
+      if (requestToken !== this.currentRequestToken) return false;
+      const committed = await this.commitPlaybackTarget(
+        target,
+        recordNavigation,
+        restoreFromHistory,
+      );
+      if (!committed) {
+        audioManager.stop();
+        statusStore.playLoading = false;
+        this.pendingPlaybackTarget = null;
+        this.pendingRecordNavigation = null;
+        this.pendingHistoryNavigationIndex = null;
+        await this.nextOrPrev("next", autoPlay);
+        return false;
+      }
+      if (requestToken !== this.currentRequestToken) return false;
+      if (!recordNavigation && historyNavigationIndex !== null) {
+        this.navigationIndex = historyNavigationIndex;
+      }
+      if (this.pendingPlaybackTarget === target) {
+        this.pendingPlaybackTarget = null;
+        this.pendingRecordNavigation = null;
+        this.pendingHistoryNavigationIndex = null;
+      }
+      // 后置失败不应重新提交已消费的临时队列项。
+      try {
+        await this.afterPlaySetup(playSongData);
+      } catch (error) {
+        console.error("❌ 播放后置处理失败:", error);
+      }
       statusStore.playLoading = false;
+      return true;
     } catch (error) {
       if (requestToken === this.currentRequestToken) {
         console.error("❌ 播放初始化失败:", error);
+        statusStore.playLoading = false;
         this.handlePlaybackError(undefined);
       }
+      return false;
     }
   }
 
@@ -366,9 +786,10 @@ class PlayerController {
   async switchQuality(seek: number = 0, autoPlay?: boolean) {
     const statusStore = useStatusStore();
     const songManager = useSongManager();
+    const musicStore = useMusicStore();
     const audioManager = useAudioManager();
-    const playSongData = getPlaySongData();
-    if (!playSongData || playSongData.path) return;
+    const playSongData = musicStore.playSong;
+    if (!playSongData?.id || playSongData.path) return;
     // 如果未指定 autoPlay，则保持当前播放状态
     const shouldAutoPlay = autoPlay ?? statusStore.playStatus;
     try {
@@ -408,7 +829,7 @@ class PlayerController {
     const musicStore = useMusicStore();
     const audioManager = useAudioManager();
     const playSongData = musicStore.playSong;
-    if (!playSongData || playSongData.path) return;
+    if (!playSongData?.id || playSongData.path) return;
     try {
       statusStore.playLoading = true;
       // 清除预取缓存
@@ -764,7 +1185,7 @@ class PlayerController {
 
     // 加载完成
     audioManager.addEventListener("canplay", () => {
-      const playSongData = getPlaySongData();
+      const playSongData = musicStore.playSong;
       // 结束加载
       statusStore.playLoading = false;
       // 恢复 EQ
@@ -925,6 +1346,7 @@ class PlayerController {
     const musicStore = useMusicStore();
     const statusStore = useStatusStore();
     const songManager = useSongManager();
+    const errorRequestToken = this.currentRequestToken;
     // 清除预加载缓存
     songManager.clearPrefetch();
     // 当前歌曲 ID
@@ -975,6 +1397,7 @@ class PlayerController {
     // 未超过重试次数 -> 尝试重新获取 URL（可能是过期）
     if (this.retryInfo.count <= this.MAX_RETRY_COUNT) {
       await sleep(1000);
+      if (errorRequestToken !== this.currentRequestToken) return;
       if (this.retryInfo.count === 1) {
         statusStore.playLoading = true;
         window.$message.warning("播放异常，正在尝试恢复...");
@@ -994,7 +1417,15 @@ class PlayerController {
    */
   private async skipToNextWithDelay() {
     const dataStore = useDataStore();
+    const musicStore = useMusicStore();
     const statusStore = useStatusStore();
+    const failedTarget = this.pendingPlaybackTarget;
+    if (failedTarget?.source === "priority" && failedTarget.queueId) {
+      await dataStore.removeNextQueueEntry(failedTarget.queueId);
+    }
+    this.pendingPlaybackTarget = null;
+    this.pendingRecordNavigation = null;
+    this.pendingHistoryNavigationIndex = null;
     this.failSkipCount++;
     // 连续跳过 3 首 -> 停止播放
     if (this.failSkipCount >= 3) {
@@ -1004,10 +1435,18 @@ class PlayerController {
       this.failSkipCount = 0;
       return;
     }
-    // 列表只有一首 -> 停止播放
-    if (dataStore.playList.length <= 1) {
+    const hasPrioritySong = dataStore.nextPlayQueue.length > 0;
+    const canRestoreAnchor =
+      musicStore.playbackSource !== "playlist" && dataStore.playList.length > 0;
+    // 当前普通列表仅有失败歌曲时停止，临时队列和 FM 仍可继续。
+    if (
+      !hasPrioritySong &&
+      !statusStore.personalFmMode &&
+      !canRestoreAnchor &&
+      dataStore.playList.length <= 1
+    ) {
       window.$message.error("当前已无可播放歌曲");
-      this.cleanPlayList();
+      await this.cleanPlayList();
       this.failSkipCount = 0;
       return;
     }
@@ -1026,7 +1465,7 @@ class PlayerController {
     // 清除 MPV 强制暂停状态（如果是 MPV 引擎）
     audioManager.clearForcePaused();
     // 如果没有源，尝试重新初始化当前歌曲
-    if (!audioManager.src) {
+    if (this.pendingPlaybackTarget || !audioManager.src) {
       await this.playSong({
         autoPlay: true,
         seek: statusStore.currentTime,
@@ -1080,59 +1519,53 @@ class PlayerController {
     type: "next" | "prev" = "next",
     play: boolean = true,
     autoEnd: boolean = false,
-  ) {
+  ): Promise<void> {
     const dataStore = useDataStore();
+    const musicStore = useMusicStore();
     const statusStore = useStatusStore();
-    const songManager = useSongManager();
-    // 先暂停当前播放
     const audioManager = useAudioManager();
+    let target: PlaybackTarget | null;
+    let historyIndex: number | null = null;
+
     void this.scrobbleCurrentSong();
-    // 立即显示加载状态
+    if (type === "prev") {
+      if (this.navigationIndex > 0) {
+        historyIndex = this.navigationIndex - 1;
+        target = this.getHistoryPlaybackTarget(historyIndex);
+      } else {
+        target = this.getPreviousPlaylistTarget();
+      }
+    } else {
+      if (!autoEnd && this.navigationIndex < this.navigationHistory.length - 1) {
+        historyIndex = this.navigationIndex + 1;
+        target = this.getHistoryPlaybackTarget(historyIndex);
+      } else {
+        target = this.getNextPlaybackTarget(autoEnd);
+        if (!target && statusStore.personalFmMode) {
+          target = await this.getNextPersonalFmTarget(musicStore.personalFM.playIndex);
+        }
+      }
+    }
+
+    if (!target) {
+      const hasList = dataStore.playList.length > 0 || musicStore.personalFM.list.length > 0;
+      window.$message[hasList ? "warning" : "error"](
+        hasList ? "当前没有可播放的歌曲" : "播放列表为空，请添加歌曲",
+      );
+      statusStore.playLoading = false;
+      return;
+    }
+
     statusStore.playLoading = true;
     audioManager.stop();
-    // 私人FM
-    if (statusStore.personalFmMode) {
-      await songManager.initPersonalFM(true);
-      await this.playSong({ autoPlay: play });
-      return;
-    }
-    // 播放列表是否为空
-    const playListLength = dataStore.playList.length;
-    if (playListLength === 0) {
-      window.$message.error("播放列表为空，请添加歌曲");
-      return;
-    }
-    // 单曲循环
-    // 如果是自动结束触发的单曲循环，则重播当前歌曲
-    if (statusStore.repeatMode === "one" && autoEnd) {
-      await this.playSong({ autoPlay: play, seek: 0 });
-      return;
-    }
-    // 计算索引
-    let nextIndex = statusStore.playIndex;
-    let attempts = 0;
-    const maxAttempts = playListLength;
-    // Fuck DJ Mode: 寻找下一个不被跳过的歌曲
-    while (attempts < maxAttempts) {
-      nextIndex += type === "next" ? 1 : -1;
-      // 边界处理 (索引越界)
-      if (nextIndex >= playListLength) nextIndex = 0;
-      if (nextIndex < 0) nextIndex = playListLength - 1;
-      const nextSong = dataStore.playList[nextIndex];
-      if (!this.shouldSkipSong(nextSong)) {
-        break;
-      }
-      attempts++;
-    }
-    if (attempts >= maxAttempts) {
-      window.$message.warning("播放列表中没有可播放的歌曲");
-      audioManager.stop();
-      statusStore.playStatus = false;
-      return;
-    }
-    // 更新状态并播放
-    statusStore.playIndex = nextIndex;
-    await this.playSong({ autoPlay: play });
+    this.pendingHistoryNavigationIndex = historyIndex;
+    const success = await this.playSong({
+      autoPlay: play,
+      seek: 0,
+      target,
+      recordNavigation: historyIndex === null,
+    });
+    if (!success && historyIndex === null) this.pendingHistoryNavigationIndex = null;
   }
 
   /** 获取总时长 (ms) */
@@ -1284,6 +1717,8 @@ class PlayerController {
     const statusStore = useStatusStore();
     const musicStore = useMusicStore();
     if (!data || !data.length) return;
+    const oldAnchorSong = dataStore.playList[statusStore.playIndex];
+    const shouldPlay = options.play ?? true;
     // 处理随机模式
     let processedData = [...data];
     if (statusStore.shuffleMode === "on") {
@@ -1292,36 +1727,49 @@ class PlayerController {
     }
     // 更新列表
     await dataStore.setPlayList(processedData);
+    const preservedAnchorIndex = oldAnchorSong
+      ? processedData.findIndex((item) => this.isSameSong(item, oldAnchorSong))
+      : -1;
+    statusStore.playIndex =
+      preservedAnchorIndex >= 0
+        ? preservedAnchorIndex
+        : Math.min(Math.max(statusStore.playIndex, 0), processedData.length - 1);
     // 关闭心动模式
     if (!options.keepHeartbeatMode && statusStore.shuffleMode === "heartbeat") {
       statusStore.shuffleMode = "off";
     }
-    if (statusStore.personalFmMode) statusStore.personalFmMode = false;
+    // 听歌打卡
     if (musicStore.playSong.id && (!song || musicStore.playSong.id !== song.id)) {
       void this.scrobbleCurrentSong();
     }
     // 确定播放索引
     if (song && song.id) {
-      const newIndex = processedData.findIndex((s) => s.id === song.id);
-      if (musicStore.playSong.id === song.id) {
-        // 如果是同一首歌，仅更新索引
-        if (newIndex !== -1) statusStore.playIndex = newIndex;
-        // 如果需要播放
-        if (options.play) await this.play();
-      } else {
-        // 在开始请求之前就设置加载状态
-        statusStore.playLoading = true;
-        statusStore.playIndex = newIndex;
-        await this.playSong({ autoPlay: options.play });
+      const newIndex = processedData.findIndex((item) => this.isSameSong(item, song));
+      const isActualSong = this.isSameSong(musicStore.playSong, song);
+      if (newIndex >= 0) {
+        if (musicStore.playbackSource === "playlist" && isActualSong) {
+          statusStore.playIndex = newIndex;
+          if (shouldPlay) await this.play();
+        } else if (shouldPlay || !isActualSong) {
+          statusStore.playLoading = true;
+          await this.playSong({
+            autoPlay: shouldPlay,
+            target: { song: processedData[newIndex], source: "playlist", playlistIndex: newIndex },
+          });
+        }
       }
     } else {
-      // 默认播放第一首
-      statusStore.playLoading = true;
-      statusStore.playIndex = 0;
-      await this.playSong({ autoPlay: options.play });
+      const firstSong = processedData[0];
+      if (firstSong) {
+        statusStore.playLoading = true;
+        await this.playSong({
+          autoPlay: shouldPlay,
+          target: { song: firstSong, source: "playlist", playlistIndex: 0 },
+        });
+      }
     }
     musicStore.playPlaylistId = pid ?? 0;
-    if (options.showTip) window.$message.success("已开始播放");
+    if (options.showTip ?? true) window.$message.success("已开始播放");
   }
 
   /**
@@ -1332,49 +1780,74 @@ class PlayerController {
     const statusStore = useStatusStore();
     const musicStore = useMusicStore();
     const audioManager = useAudioManager();
+    await this.playbackCommitChain;
+    this.currentRequestToken++;
     // 重置状态
     void this.scrobbleCurrentSong();
     audioManager.stop();
     statusStore.resetPlayStatus();
     musicStore.resetMusicData();
+    this.committedPersonalFmMode = false;
+    this.pendingPlaybackTarget = null;
+    this.pendingRecordNavigation = null;
+    this.pendingHistoryNavigationIndex = null;
+    this.navigationHistory = [];
+    this.navigationIndex = -1;
     // 清空播放列表
     await dataStore.setPlayList([]);
     await dataStore.clearOriginalPlayList();
+    await this.clearNextPlayQueue();
     playerIpc.sendTaskbarProgress("none");
   }
 
   /**
-   * 添加下一首歌曲
+   * 将歌曲追加到临时待播队列
    * @param song 歌曲
-   * @param play 是否立即播放
    */
-  public async addNextSong(song: SongType, play: boolean = false) {
+  public async enqueueNextSong(song: SongType): Promise<void> {
     const dataStore = useDataStore();
-    const musicStore = useMusicStore();
-    const statusStore = useStatusStore();
-    const wasPersonalFm = statusStore.personalFmMode;
-    // 关闭特殊模式
-    if (statusStore.personalFmMode) statusStore.personalFmMode = false;
-    if (!wasPersonalFm && musicStore.playSong.id === song.id) {
-      await this.play();
+    await dataStore.enqueueNextSong(song);
+    await this.refreshNextScheduling();
+    window.$message.success("已添加至下一首播放");
+  }
+
+  /** 立即播放歌曲，保留临时待播队列 */
+  public async playNow(song: SongType): Promise<void> {
+    const dataStore = useDataStore();
+    const playlistIndex = dataStore.playList.findIndex((item) => this.isSameSong(item, song));
+    const target: PlaybackTarget =
+      playlistIndex >= 0
+        ? { song: dataStore.playList[playlistIndex], source: "playlist", playlistIndex }
+        : { song, source: "direct" };
+    if (await this.playSong({ autoPlay: true, target })) {
       window.$message.success("已开始播放");
-      return;
     }
-    // 尝试添加
-    const currentSongId = musicStore.playSong.id;
-    const songIndex = await dataStore.setNextPlaySong(song, statusStore.playIndex);
-    // 修正当前播放索引
-    const newCurrentIndex = dataStore.playList.findIndex((s) => s.id === currentSongId);
-    if (newCurrentIndex !== -1 && newCurrentIndex !== statusStore.playIndex) {
-      statusStore.playIndex = newCurrentIndex;
+  }
+
+  /** 播放指定临时待播项 */
+  public async playNextQueueEntry(queueId: string): Promise<void> {
+    const dataStore = useDataStore();
+    const entry = dataStore.nextPlayQueue.find((item) => item.queueId === queueId);
+    if (!entry) return;
+    await this.playSong({
+      autoPlay: true,
+      target: { song: entry.song, source: "priority", queueId: entry.queueId },
+    });
+  }
+
+  /** 移除指定临时待播项 */
+  public async removeNextQueueEntry(queueId: string): Promise<void> {
+    const dataStore = useDataStore();
+    if (await dataStore.removeNextQueueEntry(queueId)) {
+      await this.refreshNextScheduling();
     }
-    // 播放歌曲
-    if (songIndex < 0) return;
-    if (play) {
-      await this.togglePlayIndex(songIndex, true);
-    } else {
-      window.$message.success("已添加至下一首播放");
-    }
+  }
+
+  /** 清空临时待播队列 */
+  public async clearNextPlayQueue(): Promise<void> {
+    const dataStore = useDataStore();
+    await dataStore.clearNextPlayQueue();
+    await this.refreshNextScheduling();
   }
 
   /**
@@ -1384,29 +1857,28 @@ class PlayerController {
    */
   public async togglePlayIndex(index: number, play: boolean = false) {
     const dataStore = useDataStore();
+    const musicStore = useMusicStore();
     const statusStore = useStatusStore();
-    const audioManager = useAudioManager();
 
     try {
       // 获取数据
       const { playList } = dataStore;
       // 若超出播放列表
-      if (index >= playList.length) return;
+      if (index < 0 || index >= playList.length) return;
       void this.scrobbleCurrentSong();
-      // 先停止当前播放
-      audioManager.stop();
-      // 相同歌曲且需要播放
-      if (statusStore.playIndex === index) {
+      // 只有实际普通列表来源才能直接恢复当前音频。
+      if (
+        musicStore.playbackSource === "playlist" &&
+        statusStore.playIndex === index &&
+        this.isSameSong(musicStore.playSong, playList[index])
+      ) {
         if (play) await this.play();
         return;
       }
-      // 更改状态
-      statusStore.playIndex = index;
-      // 重置播放进度（切换歌曲时必须重置）
-      statusStore.currentTime = 0;
-      statusStore.progress = 0;
-      statusStore.lyricIndex = -1;
-      await this.playSong({ autoPlay: play });
+      await this.playSong({
+        autoPlay: play,
+        target: { song: playList[index], source: "playlist", playlistIndex: index },
+      });
     } catch (error) {
       console.error("Error in togglePlayIndex:", error);
       statusStore.playLoading = false;
@@ -1418,36 +1890,47 @@ class PlayerController {
    * 移除指定歌曲
    * @param index 歌曲索引
    */
-  public removeSongIndex(index: number) {
+  public async removeSongIndex(index: number): Promise<void> {
     const dataStore = useDataStore();
+    const musicStore = useMusicStore();
     const statusStore = useStatusStore();
     // 获取数据
     const { playList } = dataStore;
     // 若超出播放列表
-    if (index >= playList.length) return;
-    // 仅剩一首
-    if (playList.length === 1) {
-      this.cleanPlayList();
-      return;
-    }
-    // 是否为当前播放歌曲
-    const isCurrentPlay = statusStore.playIndex === index;
-    // 若将移除最后一首
-    if (index === playList.length - 1) {
-      statusStore.playIndex = 0;
-    }
-    // 若为当前播放之后
-    else if (statusStore.playIndex > index) {
-      statusStore.playIndex--;
-    }
+    if (index < 0 || index >= playList.length) return;
+    const oldPlayIndex = statusStore.playIndex;
+    const isCurrentPlaylistSong =
+      musicStore.playbackSource === "playlist" &&
+      oldPlayIndex === index &&
+      this.isSameSong(musicStore.playSong, playList[index]);
     // 移除指定歌曲
     const newPlaylist = [...playList];
     newPlaylist.splice(index, 1);
-    dataStore.setPlayList(newPlaylist);
-    // 若为当前播放
-    if (isCurrentPlay) {
-      void this.scrobbleCurrentSong();
-      this.playSong({ autoPlay: statusStore.playStatus });
+    await dataStore.setPlayList(newPlaylist);
+
+    if (!newPlaylist.length) {
+      statusStore.playIndex = -1;
+      if (isCurrentPlaylistSong) {
+        if (dataStore.nextPlayQueue.length) {
+          await this.nextOrPrev("next", statusStore.playStatus);
+        } else {
+          await this.cleanPlayList();
+        }
+      }
+      return;
+    }
+
+    if (oldPlayIndex > index) {
+      statusStore.playIndex = Math.min(oldPlayIndex - 1, newPlaylist.length - 1);
+    } else if (oldPlayIndex === index) {
+      // 锚点落在被删项之前，下一次恢复会命中原来的后一首。
+      statusStore.playIndex = (index - 1 + newPlaylist.length) % newPlaylist.length;
+    } else {
+      statusStore.playIndex = Math.min(oldPlayIndex, newPlaylist.length - 1);
+    }
+
+    if (isCurrentPlaylistSong) {
+      await this.nextOrPrev("next", statusStore.playStatus);
     }
   }
 

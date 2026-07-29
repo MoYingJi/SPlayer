@@ -1,14 +1,13 @@
 import { personalFm, personalFmToTrash } from "@/api/rec";
 import { songQuality, songUrl, unlockSongUrl } from "@/api/song";
 import { useLyricManager } from "@/core/player/LyricManager";
+import { useMusicStore, useSettingStore, useStatusStore, useStreamingStore } from "@/stores";
 import {
-  useDataStore,
-  useMusicStore,
-  useSettingStore,
-  useStatusStore,
-  useStreamingStore,
-} from "@/stores";
-import { QualityType, type SongType, type AudioSourceType } from "@/types/main";
+  QualityType,
+  type AudioSourceType,
+  type PlaybackTarget,
+  type SongType,
+} from "@/types/main";
 import { isLogin } from "@/utils/auth";
 import { isElectron } from "@/utils/env";
 import { formatSongsList } from "@/utils/format";
@@ -49,6 +48,8 @@ export type AudioSource = {
 class SongManager {
   /** 预载下一首歌曲播放信息 */
   private nextPrefetch: AudioSource | undefined;
+  /** 预载任务代次，防止旧异步结果覆盖新候选 */
+  private prefetchGeneration = 0;
 
   public peekPrefetch(id: number): AudioSource | undefined {
     if (!this.nextPrefetch) return;
@@ -350,56 +351,57 @@ class SongManager {
    * @returns 预载数据
    */
   public prefetchNextSong = async (): Promise<AudioSource | undefined> => {
+    const generation = ++this.prefetchGeneration;
+    const isSameTarget = (target: PlaybackTarget | null, expected: PlaybackTarget): boolean => {
+      if (!target || target.song.id !== expected.song.id || target.source !== expected.source) {
+        return false;
+      }
+      if (target.queueId !== expected.queueId) return false;
+      if (target.playlistIndex !== expected.playlistIndex) return false;
+      return target.personalFmIndex === expected.personalFmIndex;
+    };
+
     try {
-      const dataStore = useDataStore();
       const statusStore = useStatusStore();
       const settingStore = useSettingStore();
       const lyricManager = useLyricManager();
       const musicStore = useMusicStore();
-      // 私人FM模式：预载FM列表中的下一首
-      if (statusStore.personalFmMode) {
+      // 延迟加载，避免 PlayerController 与 SongManager 初始化时形成循环依赖。
+      const { usePlayerController } = await import("./PlayerController");
+      if (generation !== this.prefetchGeneration) return;
+      const playerController = usePlayerController() as unknown as {
+        getNextPlaybackTarget(autoEnd?: boolean): PlaybackTarget | null;
+      };
+      let target = playerController.getNextPlaybackTarget(true);
+
+      // FM 批次末尾可提前追加下一批，但不推进索引。
+      if (!target && statusStore.personalFmMode) {
         const fmList = musicStore.personalFM.list;
         const fmIndex = musicStore.personalFM.playIndex;
-        // 当前批次已是最后一首，提前拉取下一批追加到列表
         if (fmIndex >= fmList.length - 1) {
           try {
             const res = await personalFm();
+            if (generation !== this.prefetchGeneration) return;
             const newList = formatSongsList(res.data);
             if (newList?.length) {
               musicStore.personalFM.list = [...fmList, ...newList];
             }
           } catch (e) {
+            if (generation !== this.prefetchGeneration) return;
             console.warn("⚠️ 预拉取下一批私人FM失败", e);
             return;
           }
         }
-        const nextSong = musicStore.personalFM.list[fmIndex + 1];
-        if (!nextSong?.id) return;
-        this.prefetchCover(nextSong);
-        lyricManager.prefetchLyric(nextSong);
-        const { url, isTrial, quality } = await this.getOnlineUrl(nextSong.id, false);
-        if (url && !isTrial) {
-          this.nextPrefetch = {
-            id: nextSong.id,
-            url,
-            isUnlocked: false,
-            quality,
-            source: "official",
-          };
-          return this.nextPrefetch;
-        }
-        return;
+        target = playerController.getNextPlaybackTarget(true);
       }
-      // 无播放列表直接跳过
-      const playList = dataStore.playList;
-      if (!playList?.length) {
-        return;
-      }
-      // 计算下一首（循环到首）
-      let nextIndex = statusStore.playIndex + 1;
-      if (nextIndex >= playList.length) nextIndex = 0;
-      const nextSong = playList[nextIndex];
-      if (!nextSong) return;
+      if (!target || generation !== this.prefetchGeneration) return;
+
+      const expectedTarget = target;
+      const nextSong = expectedTarget.song;
+      const isCurrentTarget = (): boolean =>
+        generation === this.prefetchGeneration &&
+        isSameTarget(playerController.getNextPlaybackTarget(true), expectedTarget);
+
       // 预加载封面图片
       this.prefetchCover(nextSong);
       // 预加载歌词
@@ -416,6 +418,7 @@ class SongManager {
       }
       // 流媒体歌曲
       if (nextSong.type === "streaming" && nextSong.streamUrl) {
+        if (!isCurrentTarget()) return;
         this.nextPrefetch = {
           id: nextSong.id,
           url: nextSong.streamUrl,
@@ -432,6 +435,7 @@ class SongManager {
       const canUnlock = isElectron && nextSong.type !== "radio" && settingStore.useSongUnlock;
       // 先请求官方地址
       const { url: officialUrl, isTrial, quality } = await this.getOnlineUrl(songId, false);
+      if (!isCurrentTarget()) return;
       if (officialUrl && !isTrial) {
         // 官方可播放且非试听
         this.nextPrefetch = {
@@ -445,6 +449,7 @@ class SongManager {
       } else if (canUnlock) {
         // 官方失败或为试听时尝试解锁
         const unlockUrl = await this.getUnlockSongUrl(nextSong);
+        if (!isCurrentTarget()) return;
         if (unlockUrl.url) {
           this.nextPrefetch = { id: songId, url: unlockUrl.url, isUnlocked: true };
           return this.nextPrefetch;
@@ -470,6 +475,7 @@ class SongManager {
    * 清除预加载缓存
    */
   public clearPrefetch() {
+    this.prefetchGeneration++;
     this.nextPrefetch = undefined;
     console.log("🧹 已清除歌曲 URL 缓存");
   }

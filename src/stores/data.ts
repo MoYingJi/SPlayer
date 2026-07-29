@@ -2,6 +2,7 @@ import { toRaw } from "vue";
 import { defineStore } from "pinia";
 import type {
   SongType,
+  NextPlayQueueEntry,
   CoverType,
   UserDataType,
   UserLikeDataType,
@@ -19,6 +20,7 @@ import localforage from "localforage";
 interface ListState {
   playList: SongType[];
   originalPlayList: SongType[];
+  nextPlayQueue: NextPlayQueueEntry[];
   historyList: SongType[];
   cloudPlayList: SongType[];
   searchHistory: string[];
@@ -63,6 +65,33 @@ const musicDB = localforage.createInstance({
   storeName: "music",
 });
 
+const NEXT_PLAY_QUEUE_KEY = "nextPlayQueue";
+
+const isNextPlayQueue = (data: unknown): data is NextPlayQueueEntry[] =>
+  Array.isArray(data) &&
+  data.every(
+    (entry) =>
+      typeof entry === "object" &&
+      entry !== null &&
+      typeof entry.queueId === "string" &&
+      typeof entry.queuedAt === "number" &&
+      Number.isFinite(entry.queuedAt) &&
+      typeof entry.song === "object" &&
+      entry.song !== null,
+  );
+
+// 队列读改写共用一条链，后续操作始终基于最新内存状态。
+let nextPlayQueueWriteChain: Promise<void> = Promise.resolve();
+
+const queueNextPlayQueueWrite = <T>(operation: () => Promise<T>): Promise<T> => {
+  const result = nextPlayQueueWriteChain.then(operation);
+  nextPlayQueueWriteChain = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+};
+
 // userDB
 const userDB = localforage.createInstance({
   name: "user-data",
@@ -83,6 +112,8 @@ export const useDataStore = defineStore("data", {
     playList: [],
     // 原始播放列表
     originalPlayList: [],
+    // 临时的下一首播放队列
+    nextPlayQueue: [],
     // 播放历史
     historyList: [],
     // 搜索历史
@@ -144,32 +175,38 @@ export const useDataStore = defineStore("data", {
         // 获取 music-data
         const musicDataKeys = await musicDB.keys();
         console.log(musicDataKeys);
-        await Promise.all(
-          musicDataKeys.map(async (key) => {
-            const data = await musicDB.getItem(key);
-            if (
-              [
-                "playList",
-                "originalPlayList",
-                "historyList",
-                "cloudPlayList",
-                "localPlayList",
-                "downloadingSongs",
-              ].includes(key)
-            ) {
-              this[key] = data ? markRaw(data) : [];
-            } else if (key === "likeSongsList" && data) {
-              // 特殊处理嵌套对象中的 data
-              const listData = data as ListState["likeSongsList"];
-              this.likeSongsList = {
-                detail: listData.detail,
-                data: markRaw(listData.data || []),
-              };
-            } else {
-              this[key] = data || [];
-            }
+        await Promise.all([
+          queueNextPlayQueueWrite(async () => {
+            const data = await musicDB.getItem(NEXT_PLAY_QUEUE_KEY);
+            this.nextPlayQueue = isNextPlayQueue(data) ? markRaw(data) : [];
           }),
-        );
+          ...musicDataKeys
+            .filter((key) => key !== NEXT_PLAY_QUEUE_KEY)
+            .map(async (key) => {
+              const data = await musicDB.getItem(key);
+              if (
+                [
+                  "playList",
+                  "originalPlayList",
+                  "historyList",
+                  "cloudPlayList",
+                  "localPlayList",
+                  "downloadingSongs",
+                ].includes(key)
+              ) {
+                this[key] = data ? markRaw(data) : [];
+              } else if (key === "likeSongsList" && data) {
+                // 特殊处理嵌套对象中的 data
+                const listData = data as ListState["likeSongsList"];
+                this.likeSongsList = {
+                  detail: listData.detail,
+                  data: markRaw(listData.data || []),
+                };
+              } else {
+                this[key] = data || [];
+              }
+            }),
+        ]);
 
         // 获取 user-data
         const userDataKeys = await userDB.keys();
@@ -248,30 +285,71 @@ export const useDataStore = defineStore("data", {
       await musicDB.setItem("originalPlayList", []);
     },
     /**
-     * 设置下一首播放歌曲
-     * @param song 歌曲
-     * @param index 插入位置
-     * @returns 插入的歌曲索引
+     * 将歌曲加入临时播放队列
      */
-    async setNextPlaySong(song: SongType, index: number): Promise<number> {
-      // 若为空,则直接添加
-      if (this.playList.length === 0) {
-        this.playList = [song];
-        await musicDB.setItem("playList", cloneDeep(this.playList));
-        return 0;
-      }
-      // 避免直接修改 state
-      const newList = [...this.playList];
-      // 在当前播放位置之后插入歌曲
-      const indexAdd = index + 1;
-      newList.splice(indexAdd, 0, song);
-      // 移除重复的歌曲（如果存在）
-      const finalList = newList.filter((item, idx) => idx === indexAdd || item.id !== song.id);
-      // 更新本地存储
-      this.playList = markRaw(finalList);
-      await musicDB.setItem("playList", cloneDeep(finalList));
-      // 返回刚刚插入的歌曲索引
-      return finalList.indexOf(song);
+    async enqueueNextSong(song: SongType): Promise<NextPlayQueueEntry> {
+      return queueNextPlayQueueWrite(async () => {
+        const currentQueue = toRaw(this.nextPlayQueue);
+        let queueId = crypto.randomUUID();
+        while (currentQueue.some((entry) => entry.queueId === queueId)) {
+          queueId = crypto.randomUUID();
+        }
+        const entry: NextPlayQueueEntry = {
+          queueId,
+          queuedAt: Date.now(),
+          song: cloneDeep(toRaw(song)),
+        };
+        const nextQueue = [...currentQueue, entry];
+        await musicDB.setItem(NEXT_PLAY_QUEUE_KEY, cloneDeep(toRaw(nextQueue)));
+        this.nextPlayQueue = markRaw(nextQueue);
+        return entry;
+      });
+    },
+    /**
+     * 查看临时播放队列的队首
+     */
+    peekNextSong(): NextPlayQueueEntry | null {
+      return this.nextPlayQueue[0] ?? null;
+    },
+    /**
+     * 仅在标识匹配队首时消费队列项
+     */
+    async consumeNextSong(queueId: string): Promise<NextPlayQueueEntry | null> {
+      return queueNextPlayQueueWrite(async () => {
+        const currentQueue = toRaw(this.nextPlayQueue);
+        const entry = currentQueue[0];
+        if (!entry || entry.queueId !== queueId) return null;
+
+        const nextQueue = currentQueue.slice(1);
+        await musicDB.setItem(NEXT_PLAY_QUEUE_KEY, cloneDeep(toRaw(nextQueue)));
+        this.nextPlayQueue = markRaw(nextQueue);
+        return entry;
+      });
+    },
+    /**
+     * 按队列标识移除指定项
+     */
+    async removeNextQueueEntry(queueId: string): Promise<boolean> {
+      return queueNextPlayQueueWrite(async () => {
+        const currentQueue = toRaw(this.nextPlayQueue);
+        const index = currentQueue.findIndex((entry) => entry.queueId === queueId);
+        if (index === -1) return false;
+
+        const nextQueue = [...currentQueue];
+        nextQueue.splice(index, 1);
+        await musicDB.setItem(NEXT_PLAY_QUEUE_KEY, cloneDeep(toRaw(nextQueue)));
+        this.nextPlayQueue = markRaw(nextQueue);
+        return true;
+      });
+    },
+    /**
+     * 清空临时播放队列
+     */
+    async clearNextPlayQueue(): Promise<void> {
+      return queueNextPlayQueueWrite(async () => {
+        await musicDB.setItem(NEXT_PLAY_QUEUE_KEY, []);
+        this.nextPlayQueue = [];
+      });
     },
     /**
      * 设置播放历史
@@ -397,11 +475,21 @@ export const useDataStore = defineStore("data", {
     async deleteDB(name?: string): Promise<void> {
       try {
         if (name) {
-          await localforage.dropInstance({ name });
+          if (name === "music-data") {
+            await queueNextPlayQueueWrite(async () => {
+              await localforage.dropInstance({ name });
+              this.nextPlayQueue = [];
+            });
+          } else {
+            await localforage.dropInstance({ name });
+          }
           console.log(`Dropped ${name} database`);
           return;
         }
-        await musicDB.clear();
+        await queueNextPlayQueueWrite(async () => {
+          await musicDB.clear();
+          this.nextPlayQueue = [];
+        });
         await userDB.clear();
         console.log("All databases cleared");
       } catch (error) {

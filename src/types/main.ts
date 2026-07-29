@@ -132,6 +132,25 @@ export type SongType = {
   replayGain?: ReplayGainType;
 };
 
+/** 临时的下一首播放队列项 */
+export type NextPlayQueueEntry = {
+  queueId: string;
+  queuedAt: number;
+  song: SongType;
+};
+
+/** 当前歌曲的播放来源 */
+export type PlaybackSource = "playlist" | "priority" | "direct" | "personal-fm";
+
+/** 播放器解析后的播放目标 */
+export type PlaybackTarget = {
+  song: SongType;
+  source: PlaybackSource;
+  playlistIndex?: number;
+  personalFmIndex?: number;
+  queueId?: string;
+};
+
 export interface ReplayGainType {
   trackGain?: number;
   trackPeak?: number;

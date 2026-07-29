@@ -188,16 +188,16 @@ export const useSongMenu = () => {
         label: "立即播放",
         show: settingStore.contextMenuOptions.play,
         props: {
-          onClick: () => player.addNextSong(song, true),
+          onClick: () => player.playNow(song),
         },
         icon: renderIcon("Play", { size: 18 }),
       },
       {
         key: "play-next",
         label: "下一首播放",
-        show: settingStore.contextMenuOptions.playNext && !isCurrent && !statusStore.personalFmMode,
+        show: settingStore.contextMenuOptions.playNext && !isCurrent,
         props: {
-          onClick: () => player.addNextSong(song, false),
+          onClick: () => player.enqueueNextSong(song),
         },
         icon: renderIcon("PlayNext", { size: 18 }),
       },

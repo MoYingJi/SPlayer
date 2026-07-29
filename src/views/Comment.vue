@@ -78,7 +78,7 @@ const coverUrl = computed(() => {
 
 // 播放歌曲
 const handlePlay = () => {
-  if (songSnapshot.value) player.addNextSong(songSnapshot.value, true);
+  if (songSnapshot.value) player.playNow(songSnapshot.value);
 };
 
 // 初始化歌曲信息：优先从 musicStore 快照，否则请求接口

@@ -49,7 +49,7 @@ export const handleProtocol = async (data: ProtocolData) => {
         const player = usePlayerController();
         const result = await songDetail(data.id);
         const song = formatSongsList(result.songs)[0];
-        player.addNextSong(song, true);
+        player.playNow(song);
         return;
       }
       // 暂时将 play album 和 playlist 写成打开

@@ -82,8 +82,7 @@
     </n-popover>
     <!-- 播放列表 -->
     <n-badge
-      v-if="!statusStore.personalFmMode"
-      :value="dataStore.playList?.length ?? 0"
+      :value="(dataStore.playList?.length ?? 0) + dataStore.nextPlayQueue.length"
       :show="settingStore.showPlaylistCount"
       :max="9999"
       :style="{

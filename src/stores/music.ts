@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import type { SongType } from "@/types/main";
+import type { PlaybackSource, SongType } from "@/types/main";
 import { isElectron } from "@/utils/env";
 import { cloneDeep } from "lodash-es";
 import { SongLyric } from "@/types/lyric";
@@ -7,6 +7,7 @@ import { sendTaskbarLyrics } from "@/core/player/PlayerIpc";
 
 interface MusicState {
   playSong: SongType;
+  playbackSource: PlaybackSource;
   playPlaylistId: number;
   songLyric: SongLyric;
   personalFM: {
@@ -36,6 +37,8 @@ export const useMusicStore = defineStore("music", {
   state: (): MusicState => ({
     // 当前播放歌曲
     playSong: { ...defaultMusicData },
+    // 当前歌曲的播放来源
+    playbackSource: "playlist",
     // 当前播放歌单
     playPlaylistId: 0,
     // 当前歌曲歌词
@@ -82,6 +85,7 @@ export const useMusicStore = defineStore("music", {
     /** 重置音乐数据 */
     resetMusicData() {
       this.playSong = { ...defaultMusicData };
+      this.playbackSource = "playlist";
       this.playPlaylistId = 0;
       this.setSongLyric({ lrcData: [], yrcData: [] }, true);
       if (isElectron) {

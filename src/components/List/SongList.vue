@@ -302,7 +302,7 @@ const handleSongClick = (song: SongType) => {
 // 处理歌曲播放
 const handleSongPlay = (song: SongType) => {
   if (props.doubleClickAction === "add") {
-    player.addNextSong(song, true);
+    player.playNow(song);
   } else {
     player.updatePlayList(listData.value, song, props.playListId);
   }

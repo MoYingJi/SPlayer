@@ -1,5 +1,5 @@
 import type { AutomationPoint } from "@/core/audio-player/IPlaybackEngine";
-import type { SongType } from "@/types/main";
+import type { PlaybackTarget, SongType } from "@/types/main";
 
 /** 音频分析结果 */
 export interface AudioAnalysis {
@@ -97,8 +97,8 @@ export type AutomixState = "IDLE" | "MONITORING" | "SCHEDULED" | "TRANSITIONING"
 
 export type AutomixPlan = {
   token: number;
+  target: PlaybackTarget;
   nextSong: SongType;
-  nextIndex: number;
   triggerTime: number;
   crossfadeDuration: number;
   startSeek: number;

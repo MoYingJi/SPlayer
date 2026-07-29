@@ -15,7 +15,7 @@
           @click="player.playOrPause()"
         />
         <!-- 播放 -->
-        <SvgIcon :size="28" name="Play" class="play" @click="player.addNextSong(song, true)" />
+        <SvgIcon :size="28" name="Play" class="play" @click="player.playNow(song)" />
       </div>
       <!-- 标题 -->
       <div class="title">

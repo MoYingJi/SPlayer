@@ -94,6 +94,9 @@ export class PlayModeManager {
     const musicStore = useMusicStore();
 
     const currentList = [...dataStore.playList];
+    const anchorSongId = currentList[statusStore.playIndex]?.id;
+    const currentSongId =
+      musicStore.playbackSource === "playlist" ? musicStore.playSong?.id : anchorSongId;
     // 备份原始列表
     await dataStore.setOriginalPlayList(currentList);
 
@@ -104,7 +107,7 @@ export class PlayModeManager {
     await dataStore.setPlayList(shuffled);
 
     // 修正当前播放索引
-    const idx = shuffled.findIndex((s) => s.id === musicStore.playSong?.id);
+    const idx = shuffled.findIndex((s) => s.id === currentSongId);
     if (idx !== -1) statusStore.playIndex = idx;
 
     window.$message.success("随机播放已开启", { showIcon: false });
@@ -117,6 +120,10 @@ export class PlayModeManager {
     const statusStore = useStatusStore();
     const musicStore = useMusicStore();
     const dataStore = useDataStore();
+    const currentList = [...dataStore.playList];
+    const anchorSong = currentList[statusStore.playIndex];
+    const isPlaylistSource = musicStore.playbackSource === "playlist";
+    const currentSong = isPlaylistSource ? musicStore.playSong : anchorSong || musicStore.playSong;
 
     // 检查登录状态
     if (isLogin() !== 1) {
@@ -148,7 +155,7 @@ export class PlayModeManager {
       }
       // 获取当前歌曲ID，强制转换为数字
       let currentSongId: number;
-      const rawId = musicStore.playSong.id;
+      const rawId = currentSong.id;
       // 字符串ID，尝试解析为数字
       if (typeof rawId === "string") {
         const parsed = parseInt(rawId, 10);
@@ -184,17 +191,15 @@ export class PlayModeManager {
         throw new Error("心动模式推荐列表为空");
       }
       // 备份当前播放列表
-      const currentList = [...dataStore.playList];
       await dataStore.setOriginalPlayList(currentList);
       if (signal.aborted) return;
       // 构建新的心动播放列表
-      const currentSong = musicStore.playSong;
       // 过滤掉推荐列表中可能重复的当前歌曲
       const filteredRec = recList.filter((s) => s.id !== currentSong.id);
       const finalList = [{ ...currentSong }, ...filteredRec.map((s) => ({ ...s }))];
       // 直接替换播放列表
       await dataStore.setPlayList(finalList);
-      // 设置播放索引为第一首
+      // 普通来源保持当前歌在首项；临时来源仅更新普通列表恢复锚点。
       statusStore.playIndex = 0;
       window.$message.success("心动模式已开启");
     } catch (e) {
@@ -214,13 +219,16 @@ export class PlayModeManager {
     const dataStore = useDataStore();
     const statusStore = useStatusStore();
     const musicStore = useMusicStore();
+    const anchorSongId = dataStore.playList[statusStore.playIndex]?.id;
+    const currentSongId =
+      musicStore.playbackSource === "playlist" ? musicStore.playSong?.id : anchorSongId;
 
     // 恢复原始列表
     const original = await dataStore.getOriginalPlayList();
 
     if (original && original.length > 0) {
       await dataStore.setPlayList(original);
-      const idx = original.findIndex((s) => s.id === musicStore.playSong?.id);
+      const idx = original.findIndex((s) => s.id === currentSongId);
       statusStore.playIndex = idx !== -1 ? idx : 0;
       await dataStore.clearOriginalPlayList();
     } else {

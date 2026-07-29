@@ -328,6 +328,8 @@ export const getPlaySongData = (): SongType | null => {
   const dataStore = useDataStore();
   const musicStore = useMusicStore();
   const statusStore = useStatusStore();
+  // 当前实际歌曲可能来自临时队列，不一定存在于普通播放列表。
+  if (musicStore.playSong?.id) return musicStore.playSong;
   // 若为私人FM
   if (statusStore.personalFmMode) {
     return musicStore.personalFMSong;

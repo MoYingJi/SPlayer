@@ -161,7 +161,7 @@ const toSearch = async (key: any, type: string = "keyword") => {
     case "songs": {
       const result = await songDetail(key?.id);
       const song = formatSongsList(result.songs)[0];
-      player.addNextSong(song, true);
+      player.playNow(song);
       break;
     }
     case "playlists":

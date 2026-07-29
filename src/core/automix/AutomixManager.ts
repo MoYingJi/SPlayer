@@ -3,7 +3,7 @@ import { getSharedAudioContext } from "./SharedAudioContext";
 import { useAudioManager } from "../player/AudioManager";
 import { useSongManager } from "../player/SongManager";
 import { usePlayerController } from "../player/PlayerController";
-import { useDataStore, useMusicStore, useSettingStore, useStatusStore } from "@/stores";
+import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
 import type {
   AudioAnalysis,
   AutomixPlan,
@@ -12,7 +12,7 @@ import type {
   AdvancedTransition,
 } from "@/types/audio/automix";
 import { isAudioAnalysis, isTransitionProposal, isAdvancedTransition } from "@/utils/automix";
-import type { SongType } from "@/types/main";
+import type { PlaybackTarget, SongType } from "@/types/main";
 import { isElectron } from "@/utils/env";
 import { msToTime } from "@/utils/time";
 import { toFileUrl } from "@/utils/fileUrl";
@@ -59,8 +59,8 @@ export class AutomixManager {
   public automixScheduledCtxTime: number | null = null;
   /** 触发混音时的请求 Token 标识，用于校验是否发生过外部干预（比如用户手动快进） */
   public automixScheduledToken: number | null = null;
-  /** 下一次将要被播放的新一首的 ID，用于调度后验证 */
-  public automixScheduledNextId: number | string | null = null;
+  /** 下一次将要被播放的完整目标标识，用于调度后验证 */
+  public automixScheduledTargetKey: string | null = null;
   /** 限制日志频率的时间戳映射字典 */
   public automixLogTimestamps = new Map<string, number>();
 
@@ -149,6 +149,37 @@ export class AutomixManager {
   public getSongIdForCache(song: SongType): number | null {
     if (song.type === "radio") return song.dj?.id ?? null;
     return song.id || null;
+  }
+
+  /** 比较两个播放目标的完整身份，区分同歌的重复队列项。 */
+  private isSamePlaybackTarget(first: PlaybackTarget | null, second: PlaybackTarget): boolean {
+    if (!first) return false;
+    return (
+      first.song.id === second.song.id &&
+      first.song.type === second.song.type &&
+      first.song.path === second.song.path &&
+      first.song.serverId === second.song.serverId &&
+      first.song.originalId === second.song.originalId &&
+      first.source === second.source &&
+      first.queueId === second.queueId &&
+      first.playlistIndex === second.playlistIndex &&
+      first.personalFmIndex === second.personalFmIndex
+    );
+  }
+
+  /** 生成包含歌曲与来源位置的稳定目标标识。 */
+  private getPlaybackTargetKey(target: PlaybackTarget): string {
+    return JSON.stringify([
+      target.song.id,
+      target.song.type,
+      target.song.path ?? null,
+      target.song.serverId ?? null,
+      target.song.originalId ?? null,
+      target.source,
+      target.queueId ?? null,
+      target.playlistIndex ?? null,
+      target.personalFmIndex ?? null,
+    ]);
   }
 
   /**
@@ -286,7 +317,8 @@ export class AutomixManager {
 
     const currentId = this.getSongIdForCache(currentSong);
     const nextId = this.getSongIdForCache(nextInfo.song);
-    const key = `${playerController.currentRequestToken}:${currentId ?? "x"}:${nextId ?? "x"}`;
+    const targetKey = this.getPlaybackTargetKey(nextInfo);
+    const key = `${playerController.currentRequestToken}:${currentId ?? "x"}:${nextId ?? "x"}:${targetKey}`;
 
     if (this.ensureAutomixAnalysisKey === key) {
       if (
@@ -300,6 +332,10 @@ export class AutomixManager {
     this.ensureAutomixAnalysisKey = key;
     const token = playerController.currentRequestToken;
     const analyzeTime = this.getAutomixAnalyzeTimeSec();
+    const isExpectedTarget = (): boolean =>
+      token === playerController.currentRequestToken &&
+      this.ensureAutomixAnalysisKey === key &&
+      this.isSamePlaybackTarget(playerController.getNextPlaybackTarget(true), nextInfo);
 
     this.ensureAutomixAnalysisInFlight = (async () => {
       const songManager = useSongManager();
@@ -321,7 +357,7 @@ export class AutomixManager {
         }
       }
 
-      if (token !== playerController.currentRequestToken) return;
+      if (!isExpectedTarget()) return;
 
       if (currentPath) {
         playerController.currentAnalysisKey = currentPath;
@@ -329,7 +365,7 @@ export class AutomixManager {
           const raw = await window.electron.ipcRenderer.invoke("analyze-audio", currentPath, {
             maxAnalyzeTimeSec: analyzeTime,
           });
-          if (token !== playerController.currentRequestToken) return;
+          if (!isExpectedTarget()) return;
           if (isAudioAnalysis(raw)) {
             playerController.currentAnalysis = raw;
             playerController.currentAnalysisKind = "full";
@@ -358,7 +394,7 @@ export class AutomixManager {
         }
       }
 
-      if (token !== playerController.currentRequestToken) return;
+      if (!isExpectedTarget()) return;
 
       if (nextPath) {
         if (this.nextAnalysisKey !== nextPath) {
@@ -372,7 +408,7 @@ export class AutomixManager {
           const raw = await window.electron.ipcRenderer.invoke("analyze-audio-head", nextPath, {
             maxAnalyzeTimeSec: analyzeTime,
           });
-          if (token !== playerController.currentRequestToken) return;
+          if (!isExpectedTarget()) return;
           if (this.nextAnalysisKey === nextPath && isAudioAnalysis(raw)) {
             this.nextAnalysis = raw;
             this.nextAnalysisKind = "head";
@@ -485,7 +521,7 @@ export class AutomixManager {
     this.automixScheduleGroupId = null;
     this.automixScheduledCtxTime = null;
     this.automixScheduledToken = null;
-    this.automixScheduledNextId = null;
+    this.automixScheduledTargetKey = null;
 
     if (state === "IDLE") {
       this.stopAutomixScheduler();
@@ -552,12 +588,14 @@ export class AutomixManager {
 
     const audioContext = getSharedAudioContext();
     const ctxTriggerTime = audioContext.currentTime + (plan.triggerTime - rawTime);
+    const targetKey = this.getPlaybackTargetKey(plan.target);
 
     if (
       this.automixState === "SCHEDULED" &&
       this.automixScheduledCtxTime !== null &&
       this.automixScheduledToken === plan.token &&
-      this.automixScheduledNextId === plan.nextSong.id &&
+      this.automixScheduledTargetKey === targetKey &&
+      this.isSamePlaybackTarget(usePlayerController().getNextPlaybackTarget(true), plan.target) &&
       Math.abs(this.automixScheduledCtxTime - ctxTriggerTime) < 0.1
     ) {
       return;
@@ -571,13 +609,13 @@ export class AutomixManager {
     this.automixScheduleGroupId = groupId;
     this.automixScheduledCtxTime = ctxTriggerTime;
     this.automixScheduledToken = plan.token;
-    this.automixScheduledNextId = plan.nextSong.id;
+    this.automixScheduledTargetKey = targetKey;
     this.automixState = "SCHEDULED";
 
     scheduler.runAt(groupId, ctxTriggerTime, () => this.beginAutomix(plan));
     this.automixLog(
       "log",
-      `schedule:${plan.nextSong.id}:${Math.round(plan.triggerTime * 10)}:${Math.round(plan.crossfadeDuration * 10)}:${Math.round(plan.startSeek)}`,
+      `schedule:${targetKey}:${Math.round(plan.triggerTime * 10)}:${Math.round(plan.crossfadeDuration * 10)}:${Math.round(plan.startSeek)}`,
       `[Automix] 已调度：触发 ${this.formatAutomixTime(plan.triggerTime)}，时长 ${this.formatAutomixTime(plan.crossfadeDuration)}，Seek ${this.formatAutomixTime(plan.startSeek / 1000)}，Rate ${plan.initialRate.toFixed(4)}，类型 ${plan.mixType}`,
       0,
     );
@@ -604,7 +642,10 @@ export class AutomixManager {
       return;
     }
 
-    if (plan.token !== playerController.currentRequestToken) {
+    if (
+      plan.token !== playerController.currentRequestToken ||
+      !this.isSamePlaybackTarget(playerController.getNextPlaybackTarget(true), plan.target)
+    ) {
       this.resetAutomixScheduling("MONITORING");
       return;
     }
@@ -615,13 +656,13 @@ export class AutomixManager {
     this.automixScheduleGroupId = null;
     this.automixScheduledCtxTime = null;
     this.automixScheduledToken = null;
-    this.automixScheduledNextId = null;
+    this.automixScheduledTargetKey = null;
 
     statusStore.triggerAutomixFx();
     playerController.isTransitioning = true;
     this.automixState = "TRANSITIONING";
 
-    void this.automixPlay(plan.nextSong, plan.nextIndex, {
+    void this.automixPlay(plan.target, {
       autoPlay: true,
       crossfadeDuration: plan.crossfadeDuration,
       startSeek: plan.startSeek,
@@ -879,7 +920,7 @@ export class AutomixManager {
    * 包含防伪 Token 和相关的属性，通过它进行正式的调度接力
    */
   public createAutomixPlan(
-    nextInfo: { song: SongType; index: number },
+    nextInfo: PlaybackTarget,
     triggerTime: number,
     crossfadeDuration: number,
     startSeek: number,
@@ -888,10 +929,14 @@ export class AutomixManager {
     mixType: "default" | "bassSwap",
   ): AutomixPlan {
     const playerController = usePlayerController();
+    const target: PlaybackTarget = {
+      ...nextInfo,
+      song: { ...nextInfo.song },
+    };
     return {
       token: playerController.currentRequestToken,
-      nextSong: nextInfo.song,
-      nextIndex: nextInfo.index,
+      target,
+      nextSong: target.song,
       triggerTime,
       crossfadeDuration,
       startSeek,
@@ -956,13 +1001,11 @@ export class AutomixManager {
   /**
    * 执行带有混音效果的歌曲播放加载动作
    * 不会走普通的硬切播放，而是计算匹配后的增益、进度和交叉混音参数进行底层音频引擎衔接。
-   * @param targetSong 期望无缝切入的下一首目标歌曲对象
-   * @param targetIndex 目标歌曲在歌单中的 Index
+   * @param target 期望无缝切入的完整播放目标
    * @param options 包含切换过渡参数的配置信息（包含初速度、延迟、淡入时间等）
    */
   public async automixPlay(
-    targetSong: SongType,
-    targetIndex: number,
+    target: PlaybackTarget,
     options: {
       autoPlay?: boolean;
       crossfadeDuration: number;
@@ -971,21 +1014,44 @@ export class AutomixManager {
       uiSwitchDelay?: number;
       mixType?: "default" | "bassSwap";
     },
-  ) {
+  ): Promise<void> {
     const statusStore = useStatusStore();
     const playerController = usePlayerController();
+    const audioManager = useAudioManager();
+    const targetSong = target.song;
 
     // 生成新的 requestToken
     this.automixLogTimestamps.clear();
     playerController.currentRequestToken++;
     const requestToken = playerController.currentRequestToken;
 
+    const recoverSwitchedAudio = (message: string, detail?: unknown): void => {
+      if (requestToken !== playerController.currentRequestToken) return;
+      if (detail === undefined) console.warn(message);
+      else console.error(message, detail);
+      playerController.isTransitioning = false;
+      this.resetAutomixScheduling("IDLE");
+      statusStore.endAutomixFx();
+      audioManager.stop();
+      void playerController.nextOrPrev("next", true).catch((error: unknown) => {
+        console.error("[Automix] 切换失败后的下一首播放失败:", error);
+      });
+    };
+
     try {
+      if (!this.isSamePlaybackTarget(playerController.getNextPlaybackTarget(true), target)) {
+        throw new Error("AUTOMIX_TARGET_CHANGED");
+      }
+
       // 准备数据
       const { audioSource } = await playerController.prepareAudioSource(targetSong, requestToken, {
         forceCacheForOnline: true,
         analysis: "none",
       });
+
+      if (!this.isSamePlaybackTarget(playerController.getNextPlaybackTarget(true), target)) {
+        throw new Error("AUTOMIX_TARGET_CHANGED");
+      }
 
       const analysisKey = targetSong.path || this.fileUrlToPath(audioSource.url);
       const analysis =
@@ -1034,13 +1100,40 @@ export class AutomixManager {
           deferStateSync: true,
           onSwitch: () => {
             console.log("🔀 [Automix] Switching UI to new song");
-            playerController.isTransitioning = false;
-            this.automixState = "MONITORING";
-            // 提交状态切换
-            statusStore.playIndex = targetIndex;
-            statusStore.endAutomixFx();
-            playerController.setupSongUI(targetSong, options.startSeek);
-            playerController.afterPlaySetup(targetSong);
+            void (async () => {
+              if (requestToken !== playerController.currentRequestToken) return;
+              if (
+                !this.isSamePlaybackTarget(playerController.getNextPlaybackTarget(true), target)
+              ) {
+                recoverSwitchedAudio("[Automix] 播放目标已变化，取消旧过渡");
+                return;
+              }
+
+              const committed = await playerController.commitPlaybackTarget(target, true);
+              if (requestToken !== playerController.currentRequestToken) return;
+              if (!committed) {
+                recoverSwitchedAudio("[Automix] 播放目标提交失败，改播当前下一首");
+                return;
+              }
+
+              try {
+                playerController.setupSongUI(target.song, options.startSeek);
+              } catch (error: unknown) {
+                recoverSwitchedAudio("[Automix] 新歌曲界面初始化失败", error);
+                return;
+              }
+
+              playerController.isTransitioning = false;
+              this.automixState = "MONITORING";
+              statusStore.endAutomixFx();
+              try {
+                await playerController.afterPlaySetup(target.song);
+              } catch (error: unknown) {
+                console.error("[Automix] 播放后置处理失败:", error);
+              }
+            })().catch((error: unknown) => {
+              recoverSwitchedAudio("[Automix] 播放目标提交异常", error);
+            });
           },
         },
         options.initialRate,
@@ -1055,45 +1148,28 @@ export class AutomixManager {
       if (requestToken === playerController.currentRequestToken) {
         playerController.isTransitioning = false;
         this.resetAutomixScheduling("IDLE");
-        statusStore.playIndex = targetIndex;
         statusStore.endAutomixFx();
-        playerController.playSong({ autoPlay: true });
+        try {
+          if (this.isSamePlaybackTarget(playerController.getNextPlaybackTarget(true), target)) {
+            await playerController.playSong({ autoPlay: true, target });
+          } else {
+            await playerController.nextOrPrev("next", true);
+          }
+        } catch (fallbackError: unknown) {
+          console.error("[Automix] 普通播放回退失败:", fallbackError);
+          audioManager.stop();
+        }
       }
     }
   }
 
-  public getNextSongForAutomix(): { song: SongType; index: number } | null {
-    const dataStore = useDataStore();
+  public getNextSongForAutomix(): PlaybackTarget | null {
     const statusStore = useStatusStore();
     const playerController = usePlayerController();
 
-    if (dataStore.playList.length === 0) return null;
-
-    // 单曲循环模式下，下一首就是当前这首
-    if (statusStore.repeatMode === "one") {
-      const currentSong = dataStore.playList[statusStore.playIndex];
-      if (currentSong) {
-        return { song: currentSong, index: statusStore.playIndex };
-      }
-    }
-
-    if (dataStore.playList.length <= 1) return null;
-
-    let nextIndex = statusStore.playIndex;
-    let attempts = 0;
-    const maxAttempts = dataStore.playList.length;
-
-    while (attempts < maxAttempts) {
-      nextIndex++;
-      if (nextIndex >= dataStore.playList.length) nextIndex = 0;
-
-      const nextSong = dataStore.playList[nextIndex];
-      if (!playerController.shouldSkipSong(nextSong)) {
-        return { song: nextSong, index: nextIndex };
-      }
-      attempts++;
-    }
-    return null;
+    if (statusStore.personalFmMode) return null;
+    const target = playerController.getNextPlaybackTarget(true);
+    return target?.source === "personal-fm" ? null : target;
   }
 }
 
