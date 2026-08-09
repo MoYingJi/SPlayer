@@ -5,8 +5,6 @@ packages:
   - "native/taskbar-lyric"
   - "native/tools"
 
-blockExoticSubdeps: false
-
 allowBuilds:
   "@applemusic-like-lyrics/core": true
   "@applemusic-like-lyrics/lyric": true
@@ -21,6 +19,12 @@ allowBuilds:
   register-scheme: false
   wasm-pack: false
 
+blockExoticSubdeps: false
+
 minimumReleaseAgeExclude:
+  # 友链，那还说什么了 minimumReleaseAgeExclude 给了
+  - "@applemusic-like-lyrics/core"
+  - "@applemusic-like-lyrics/lyric"
   - "@neteasecloudmusicapienhanced/api"
-  - better-sqlite3@13.0.1
+  # 一些可能需要及时更新的
+  - "electron"
