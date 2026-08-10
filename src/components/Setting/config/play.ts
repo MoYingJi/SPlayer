@@ -23,7 +23,7 @@ export const usePlaySettings = (): SettingConfig => {
       tip: "浏览器原生播放引擎，稳定可靠占用低，但不支持部分音频格式",
     },
     ffmpeg: {
-      label: "FFmpeg",
+      label: "FFmpeg (WASM)",
       value: "ffmpeg",
       tip: "FFmpeg 播放引擎，支持更多音频格式，但不支持部分功能，如倍速播放",
     },
@@ -77,7 +77,7 @@ export const usePlaySettings = (): SettingConfig => {
   const audioEngineOptions = [
     { label: "Web Audio (默认)", value: "element" },
     {
-      label: "FFmpeg",
+      label: "FFmpeg (WASM)",
       value: "ffmpeg",
       disabled: !checkIsolationSupport(),
     },
