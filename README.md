@@ -4,12 +4,19 @@
 >
 > - 依赖升级：使用新版本 AMLL、API、Electron，其它依赖随缘 `pnpm up`
 > - 问题修复：修复了一些已知问题！
+> - 体验优化：优化一些体验什么的！
 > - 默认设置：更改为我认为更好的！
 > - 包体优化：清理一些没用东西的同时不影响功能。为 Arch Linux 提供 system-wide electron 包
 >
-> 由于一些更改，原文档包括 README 的内容可能已经失效，暂时放在那吧
+> 本 fork 对上游的修改较少，属于保留原汁原味 <br/>
+> 在称呼时，如果需要与上游区分，可以将本 fork 称呼为 SPlayer Legacy Continue 或 SPlayer 传承版 <br/>
+> 我也不知道这个 fork 能活多久，等 SPlayer-Next 那边搞得差不多了我说不定就润了
+>
+> 由于一些更改，原文档和 README 的内容可能已经失效，暂时放在那吧
 >
 > 仅构建 Windows x64 Setup 和 Arch Linux x86_64 (Use system-wide electron)，仅保证 Arch Linux + KDE Plasma Wayland 下的可用性
+>
+> 由于本项目的依赖 [applemusic-like-lyrics](https://github.com/amll-dev/applemusic-like-lyrics) 将许可证明确为 AGPL-3.0-**only**，因此本项目也将许可证明确为 AGPL-3.0-**only**
 
 > [!CAUTION]
 >
@@ -21,27 +28,17 @@
 
 <div align="center">
 <img alt="logo" height="100" width="100" src="public/icons/favicon.png" />
-<h2> SPlayer </h2>
+<h2> SPlayer · 传承 </h2>
 <p> 一个简约的音乐播放器 </p>
-
-[API Docs](https://splayer.imsyy.top/api.html) | [开发版](https://github.com/imsyy/SPlayer/actions) | [发行版](https://splayer.imsyy.top/download.html)
-
-<br />
-
-[![Stars](https://img.shields.io/github/stars/imsyy/SPlayer?style=flat)](https://github.com/imsyy/SPlayer/stargazers)
-[![Version](https://img.shields.io/github/v/release/imsyy/SPlayer)](https://github.com/imsyy/SPlayer/releases)
-[![Build Release](https://github.com/imsyy/SPlayer/actions/workflows/release.yml/badge.svg)](https://github.com/imsyy/SPlayer/actions/workflows/release.yml)
-[![License](https://img.shields.io/github/license/imsyy/SPlayer)](https://github.com/imsyy/SPlayer/blob/dev/LICENSE)
-[![Issues](https://img.shields.io/github/issues/imsyy/SPlayer)](https://github.com/imsyy/SPlayer/issues)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/imsyy/SPlayer)
-
 </div>
 
-![main](/screenshots/SPlayer.jpg)
+- [查看私房菜的更改](https://github.com/MoYingJi/SPlayer/compare/SPlayer-Dev%3ASPlayer%3Adev...legacy-continue)
+- [通用构建](https://github.com/MoYingJi/SPlayer/actions/workflows/dev.yml)
+  - Windows x64
+- [Arch Linux 构建](https://github.com/MoYingJi/SPlayer/actions/workflows/arch-build.yml)
+  - Arch Linux x86_64
 
 ## 说明
-
-![提示](/screenshots/gitcodes.png)
 
 > [!IMPORTANT]
 >
@@ -56,10 +53,6 @@
 - 本项目采用 [Vue 3](https://cn.vuejs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Naïve UI](https://www.naiveui.com/) + [Electron](https://www.electronjs.org/zh/docs/latest/) 开发
 - Node.js 版本要求：>= 20，包管理器：pnpm >= 10
 - 默认会构建原生模块，需准备 Rust 工具链；如仅需要网页端构建或暂时跳过，可设置环境变量 `SKIP_NATIVE_BUILD=true`
-- 支持网页端与客户端，由于设备有限，目前仅保证 Windows 系统的适配，其他平台如遇问题可以提 Issue 或自行解决后选择提 PR
-<!-- - 仅对移动端做了基础适配，**不保证功能全部可用** -->
-
-<!--  > 请注意，本程序不打算开发移动端，也不会对移动端进行完美适配，仅保证基础可用性 -->
 
 - 欢迎各位大佬 `Star` 😍
 
@@ -70,19 +63,11 @@
 1. 安装依赖：`pnpm install`
 2. 复制 `.env.example` 为 `.env` 并按需修改
 3. 启动开发：`pnpm dev`
-4. 构建：
-   - `pnpm build`
-   - `pnpm build:win`
+4. 构建：可以参考 [贡献指南 | SPlayer-Next](https://splayer-next.imsyy.top/contributing.html#构建)
 
 ### 跳过原生模块构建
 
 默认会编译 `native/*` 下的原生模块（需要 Rust）。如果你的场景不需要原生能力，可设置 `SKIP_NATIVE_BUILD=true` 后再执行 `pnpm dev` / `pnpm build`。
-
-## 👀 Demo
-
-- 在线演示：[SPlayer](https://splayer.20100907.xyz)
-
-  > 如打不开，说明已经失效请自行前往 [获取](#️-获取)
 
 ## 🎉 功能
 
@@ -112,178 +97,16 @@
 - 🎵 支持 Last.fm Scrobble（播放记录上报）
 - 📱 移动端基础适配
 
-## 🖼️ 界面展示
-
-> 开发中，仅供参考
-
-<details>
-<summary> 主页面 </summary>
-
-![主页面](/screenshots/SPlayer%20-%20主页面.jpg)
-
-</details>
-
-<details>
-<summary> 播放页面 </summary>
-
-![播放页面](/screenshots/SPlayer%20-%20播放页面.jpg)
-
-</details>
-
-<details>
-<summary> 发现页面 </summary>
-
-![发现页面](/screenshots/SPlayer%20-%20发现页面.jpg)
-
-</details>
-
-<details>
-<summary> 歌单页面 </summary>
-
-![发现页面](/screenshots/SPlayer%20-%20歌单页面.jpg)
-
-</details>
-
-<details>
-<summary> 评论页面 </summary>
-
-![发现页面](/screenshots/SPlayer%20-%20评论页面.jpg)
-
-</details>
-
-<details>
-<summary> 本地音乐 </summary>
-
-![发现页面](/screenshots/SPlayer%20-%20本地音乐.jpg)
-
-</details>
-
-## 📦️ 获取
-
-### 二进制安装方案
-
-#### 稳定版
-
-通常情况下，可以在 [Releases](https://github.com/imsyy/SPlayer/releases) 中获取稳定版
-
-也可前往 [SPlayer 官网](https://splayer.imsyy.top/) 获取稳定版
-
-#### 开发版
-
-可以通过 GitHub Actions 工作流获取最新的开发版
-
-[Dev Workflow](https://github.com/imsyy/SPlayer/actions/workflows/dev.yml)
-
-### 自行部署方案
-
-#### ⚙️ Docker 部署
-
-> 安装及配置 `Docker` 将不在此处说明，请自行解决
-
-##### 本地构建
-
-> 请尽量拉取最新分支后使用本地构建方式，在线部署的仓库可能更新不及时
-
-```bash
-# 构建
-docker build -t splayer .
-
-# 运行
-docker run -d --name SPlayer -p 25884:25884 splayer
-# 或使用 Docker Compose
-docker-compose up -d
-```
-
-Docker 镜像内包含网页端以及运行所需的服务，默认通过 `25884` 端口访问。
-
-##### 在线部署
-
-```bash
-# 从 Docker Hub 拉取
-docker pull imsyy/splayer:latest
-# 从 GitHub ghcr 拉取
-docker pull ghcr.io/imsyy/splayer:latest
-
-# 运行
-docker run -d --name SPlayer -p 25884:25884 imsyy/splayer:latest
-```
-
-以上步骤成功后，将会在本地 [localhost:25884](http://localhost:25884/) 启动，如需更换端口，请自行修改命令行中的第一个端口号
-
-#### ⚙️ Vercel 部署
-
-> 其他部署平台大致相同，在此不做说明
-
-1. 本程序依赖 [NeteaseCloudMusicApi](https://github.com/neteasecloudmusicapienhanced/api-enhanced) 运行，请确保您已成功部署该项目或兼容的项目，并成功取得在线访问地址
-2. 点击本仓库右上角的 `Fork`，复制本仓库到你的 `GitHub` 账号
-3. 复制 `/.env.example` 文件并重命名为 `/.env`
-4. 将 `.env` 文件中的 `VITE_API_URL` 改为第一步得到的 API 地址
-
-   ```js
-   VITE_API_URL = "https://example.com";
-   ```
-
-5. 将 `Build and Output Settings` 中的 `Output Directory` 改为 `out/renderer`
-
-   ![build](/screenshots/build.jpg)
-
-6. 点击 `Deploy`，即可成功部署
-
-#### ⚙️ 服务器部署
-
-1. 重复 `⚙️ Vercel 部署` 中的 1 - 4 步骤
-2. 克隆仓库
-
-   ```bash
-   git clone https://github.com/imsyy/SPlayer.git
-   ```
-
-3. 安装依赖
-
-   ```bash
-   pnpm install
-   ```
-
-4. 编译打包
-
-   ```bash
-   pnpm build
-   ```
-
-5. 将站点运行目录设置为 `out/renderer` 目录
-
-#### ⚙️ 本地部署
-
-1. 本地部署需要用到 `Node.js`（>= 20），可前往 [Node.js 官网](https://nodejs.org/zh-cn/) 下载安装包，请下载最新稳定版
-2. 安装 pnpm（>= 10）
-
-   ```bash
-   corepack enable
-   # 或
-   npm install pnpm -g
-   ```
-
-3. 克隆仓库并拉取至本地，此处不再赘述
-4. 使用 `pnpm install` 安装项目依赖（若安装过程中遇到网络错误，请使用国内镜像源替代，此处不再赘述）
-5. 复制 `.env.example` 文件并重命名为 `.env` 并修改配置（如需跳过原生模块构建，可设置 `SKIP_NATIVE_BUILD=true`）
-6. 打包客户端，请依据你的系统类型来选择，打包成功后，会输出安装包或可执行文件在 `/dist` 目录中，可自行安装
-
-   > 默认情况下，构建命令仅会构建当前系统架构的版本。如需构建特定架构（如 x64 + arm64），请在命令后追加参数，例如：`pnpm build:win -- --x64 --arm64`
-
-   | 命令               | 系统类型 |
-   | ------------------ | -------- |
-   | `pnpm build:win`   | Windows  |
-   | `pnpm build:linux` | Linux    |
-   | `pnpm build:mac`   | macOS    |
-
 ## 😘 鸣谢
 
 特此感谢为本项目提供支持与灵感的项目：
 
-- [NeteaseCloudMusicApi](https://github.com/neteasecloudmusicapienhanced/api-enhanced)
-- [YesPlayMusic](https://github.com/qier222/YesPlayMusic)
+- [SPlayer](https://github.com/SPlayer-Dev/SPlayer)
+- [SPlayer-Next](https://github.com/SPlayer-Dev/SPlayer-Next)
+- [NeteaseCloudMusicApiEnhanced](https://github.com/neteasecloudmusicapienhanced/api-enhanced)
+- [applemusic-like-lyrics](https://github.com/amll-dev/applemusic-like-lyrics)
 - [UnblockNeteaseMusic](https://github.com/UnblockNeteaseMusic/server)
-- [applemusic-like-lyrics](https://github.com/Steve-xmh/applemusic-like-lyrics)
+- [YesPlayMusic](https://github.com/qier222/YesPlayMusic)
 - [Vue-mmPlayer](https://github.com/maomao1996/Vue-mmPlayer)
 - [refined-now-playing-netease](https://github.com/solstice23/refined-now-playing-netease)
 - [material-color-utilities](https://github.com/material-foundation/material-color-utilities)
@@ -321,7 +144,3 @@ docker run -d --name SPlayer -p 25884:25884 imsyy/splayer:latest
   4. **免责声明：** 根据 AGPL-3.0，本项目不提供任何明示或暗示的担保。请详细阅读 [GNU Affero General Public License (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0.html) 以了解完整的免责声明内容
   5. **社区参与：** 欢迎社区的参与和贡献，我们鼓励开发者一同改进和维护本项目
   6. **许可证链接：** 请阅读 [GNU Affero General Public License (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0.html) 了解更多详情
-
-## ⭐ Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=imsyy/SPlayer&type=Date)](https://star-history.com/#imsyy/SPlayer&Date)
