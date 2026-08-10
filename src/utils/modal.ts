@@ -1,4 +1,4 @@
-import type { CoverType, UpdateInfoType, SettingType, SongType } from "@/types/main";
+import type { CoverType, SettingType, SongType } from "@/types/main";
 import { CURRENT_AGREEMENT_VERSION } from "@/constants/agreement";
 import { NScrollbar } from "naive-ui";
 import { isLogin } from "./auth";
@@ -350,21 +350,6 @@ export const openSetting = async (type: SettingType = "general", scrollTo?: stri
     },
     onAfterLeave: () => {
       setModalClosed("setting");
-    },
-  });
-};
-
-// 软件更新
-export const openUpdateApp = async (data: UpdateInfoType) => {
-  const { default: UpdateApp } = await import("@/components/Modal/UpdateApp.vue");
-  const modal = window.$modal.create({
-    preset: "card",
-    transformOrigin: "center",
-    autoFocus: false,
-    style: { width: "600px" },
-    title: "发现新版本",
-    content: () => {
-      return h(UpdateApp, { data, onClose: () => modal.destroy() });
     },
   });
 };

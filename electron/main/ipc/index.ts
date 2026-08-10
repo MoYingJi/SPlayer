@@ -14,7 +14,6 @@ import initSystemIpc from "./ipc-system";
 import initTaskbarIpc from "./ipc-taskbar";
 import initThumbarIpc from "./ipc-thumbar";
 import initTrayIpc from "./ipc-tray";
-import initUpdateIpc from "./ipc-update";
 import initWindowsIpc from "./ipc-window";
 
 /**
@@ -24,7 +23,6 @@ import initWindowsIpc from "./ipc-window";
 const initIpc = (): void => {
   initSystemIpc();
   initWindowsIpc();
-  initUpdateIpc();
   initFileIpc();
   initTrayIpc();
   initLyricIpc();

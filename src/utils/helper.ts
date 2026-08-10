@@ -1,13 +1,8 @@
-import { QualityType, SongType, UpdateLogType } from "@/types/main";
+import { QualityType, SongType } from "@/types/main";
 import { AI_AUDIO_LEVELS, AI_AUDIO_KEYS } from "@/utils/meta";
 import { NTooltip, SelectOption } from "naive-ui";
 import { h, VNode } from "vue";
-import { getCacheData } from "./cache";
-import { updateLog } from "@/api/other";
-import { isEmpty } from "lodash-es";
-import { convertToLocalTime } from "./time";
 import { useSettingStore } from "@/stores";
-import { marked } from "marked";
 import { isElectron } from "./env";
 import SvgIcon from "@/components/Global/SvgIcon.vue";
 import Fuse from "fuse.js";
@@ -243,25 +238,6 @@ export const formatForGlobalShortcut = (shortcut: string): string => {
       return part;
     })
     .join("+");
-};
-
-/**
- * 获取更新日志
- * @returns 更新日志数组
- */
-export const getUpdateLog = async (): Promise<UpdateLogType[]> => {
-  const result = await getCacheData(updateLog, { key: "updateLog", time: 10 });
-  if (!result || isEmpty(result)) return [];
-  const updateLogs = await Promise.all(
-    result.map(async (v: any) => ({
-      version: v.tag_name,
-      changelog: await marked(v.body),
-      time: convertToLocalTime(v.published_at),
-      url: v.html_url,
-      prerelease: v.prerelease,
-    })),
-  );
-  return updateLogs;
 };
 
 /** 更改本地目录选项 */

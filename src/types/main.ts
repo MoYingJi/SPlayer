@@ -343,36 +343,6 @@ export type SettingType =
   | "network"
   | "about";
 
-// UpdateLog
-export type UpdateLogType = {
-  version: string;
-  changelog: string;
-  time: number;
-  url: string;
-  prerelease: boolean;
-  force?: boolean;
-};
-
-// 文件信息
-export interface FileInfoType {
-  url: string;
-  sha512: string;
-  size: number;
-}
-
-// 更新信息
-export interface UpdateInfoType {
-  tag: string;
-  version: string;
-  files: FileInfoType[];
-  path: string;
-  sha512: string;
-  releaseDate: string;
-  releaseName: string;
-  releaseNotes: string;
-  prerelease: boolean;
-}
-
 // 登录方式
 export type LoginType = "qr" | "phone" | "cookie" | "uid";
 

@@ -14,6 +14,13 @@ declare global {
         export(data: any): Promise<{ success: boolean; path?: string; error?: string }>;
         import(): Promise<{ success: boolean; data?: any; error?: string }>;
       };
+      system: {
+        osInfo: {
+          type: string;
+          arch: string;
+          release: string;
+        };
+      };
     };
     // logs
     logger: {

@@ -2,7 +2,7 @@ import type { Configuration } from "electron-builder";
 
 const config: Configuration = {
   // 应用程序的唯一标识符
-  appId: "com.imsyy.splayer",
+  appId: "top.imsyy.splayer",
   // 应用程序的产品名称
   productName: "SPlayer",
   copyright: "Copyright © imsyy 2023",

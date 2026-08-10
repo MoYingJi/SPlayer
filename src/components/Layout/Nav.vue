@@ -15,19 +15,6 @@
           </template>
         </n-button>
       </template>
-      <!-- 有可用更新 -->
-      <n-button
-        v-if="statusStore.updateAvailable"
-        :focusable="false"
-        :title="updateBtnTitle"
-        tertiary
-        circle
-        @click="handleUpdateClick"
-      >
-        <template #icon>
-          <SvgIcon name="Update" />
-        </template>
-      </n-button>
     </n-flex>
     <!-- 主内容 -->
     <n-flex :wrap="false" justify="end" class="nav-main">
@@ -136,8 +123,8 @@
             </template>
             隐藏到托盘
           </n-button>
-        </n-flex>
-      </template>
+          </n-flex>
+        </template>
     </n-modal>
   </n-layout-header>
 </template>
@@ -146,7 +133,7 @@
 import type { DropdownOption } from "naive-ui";
 import { useSettingStore, useStatusStore } from "@/stores";
 import { renderIcon } from "@/utils/helper";
-import { openSetting, openThemeConfig, openScalingModal, openUpdateApp } from "@/utils/modal";
+import { openSetting, openThemeConfig, openScalingModal } from "@/utils/modal";
 import { isDev, isElectron } from "@/utils/env";
 import { useMobile } from "@/composables/useMobile";
 
@@ -154,22 +141,6 @@ const router = useRouter();
 const settingStore = useSettingStore();
 const statusStore = useStatusStore();
 const { isDesktop, isSmallScreen } = useMobile();
-
-// 更新按钮提示
-const updateBtnTitle = computed(() => {
-  if (statusStore.updateDownloaded) return "更新已就绪，点击查看";
-  if (statusStore.updateDownloading) {
-    return `下载中 ${Math.round(statusStore.updateDownloadProgress)}%`;
-  }
-  return `发现新版本 ${statusStore.updateInfo?.version || ""}`;
-});
-
-// 点击更新按钮
-const handleUpdateClick = () => {
-  if (statusStore.updateInfo) {
-    openUpdateApp(statusStore.updateInfo);
-  }
-};
 
 const showCloseModal = ref(false);
 // 是否记住

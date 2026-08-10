@@ -50,8 +50,6 @@ export interface SettingState {
   useOnlineService: boolean;
   /** 分享链接格式 */
   shareUrlFormat: "web" | "mobile";
-  /** 启动时检查更新 */
-  checkUpdateOnStart: boolean;
   /** 隐藏 VIP 标签 */
   hideVipTag: boolean;
   /** 歌词字体大小模式 */
@@ -517,7 +515,6 @@ export const useSettingStore = defineStore("setting", {
     closeAppMethod: "hide",
     showTaskbarProgress: false,
     taskbarLyricUseThemeColor: false,
-    checkUpdateOnStart: true,
     preventSleep: false,
     useKeepAlive: true,
     songLevel: "exhigh",

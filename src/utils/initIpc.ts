@@ -10,20 +10,13 @@ import { toLikeSong } from "./auth";
 import { sendTaskbarCoverColor } from "./color";
 import { isElectron, isMac } from "./env";
 import { getPlayerInfoObj } from "./format";
-import { openSetting, openUpdateApp } from "./modal";
-
-// 关闭更新状态
-const closeUpdateStatus = () => {
-  const statusStore = useStatusStore();
-  statusStore.updateCheck = false;
-};
+import { openSetting } from "./modal";
 
 // 全局 IPC 事件
 const initIpc = () => {
   try {
     if (!isElectron) return;
     const player = usePlayerController();
-    const statusStore = useStatusStore();
 
     // 播放
     window.electron.ipcRenderer.on("play", () => player.play());
@@ -159,42 +152,6 @@ const initIpc = () => {
           }),
         );
       }
-    });
-    // 无更新
-    window.electron.ipcRenderer.on("update-not-available", () => {
-      closeUpdateStatus();
-      statusStore.updateAvailable = false;
-      statusStore.updateInfo = null;
-      window.$message.success("当前已是最新版本");
-    });
-    // 有更新
-    window.electron.ipcRenderer.on("update-available", (_, info) => {
-      closeUpdateStatus();
-      statusStore.updateAvailable = true;
-      statusStore.updateInfo = info;
-      statusStore.updateDownloaded = false;
-      statusStore.updateDownloading = false;
-      statusStore.updateDownloadProgress = 0;
-      // 弹窗提示
-      openUpdateApp(info);
-    });
-    // 更新下载进度
-    window.electron.ipcRenderer.on("download-progress", (_, progress) => {
-      statusStore.updateDownloading = true;
-      statusStore.updateDownloadProgress = Number((progress?.percent || 0).toFixed(1));
-    });
-    // 更新下载完成
-    window.electron.ipcRenderer.on("update-downloaded", () => {
-      statusStore.updateDownloading = false;
-      statusStore.updateDownloaded = true;
-      statusStore.updateDownloadProgress = 100;
-    });
-    // 更新错误
-    window.electron.ipcRenderer.on("update-error", (_, error) => {
-      console.error("Error updating:", error);
-      closeUpdateStatus();
-      statusStore.updateDownloading = false;
-      window.$message.error("更新过程出现错误");
     });
     // 协议数据
     window.electron.ipcRenderer.on("protocol-url", (_, url) => {

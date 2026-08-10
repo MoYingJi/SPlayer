@@ -171,7 +171,7 @@ const tryParseProtocolBase64Json = (path: string): ProtocolData | undefined => {
   let jsonString: string;
   try {
     jsonString = atob(path);
-  } catch (e) {
+  } catch {
     // console.error("❌ Failed to decode base64:", path, e);
     return;
   }
@@ -179,7 +179,7 @@ const tryParseProtocolBase64Json = (path: string): ProtocolData | undefined => {
   let json: any;
   try {
     json = JSON.parse(jsonString);
-  } catch (e) {
+  } catch {
     // console.error("❌ Failed to parse JSON:", e);
     return;
   }

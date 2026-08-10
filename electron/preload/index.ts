@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
+import os from "os";
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -17,6 +18,13 @@ if (process.contextIsolated) {
         reset: (keys?: string[]) => ipcRenderer.invoke("store-reset", keys),
         export: (data: any) => ipcRenderer.invoke("store-export", data),
         import: () => ipcRenderer.invoke("store-import"),
+      },
+      system: {
+        osInfo: {
+          type: os.type(),
+          arch: os.arch(),
+          release: os.release(),
+        },
       },
     });
     // Expose logger API via preload

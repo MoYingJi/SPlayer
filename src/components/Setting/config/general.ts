@@ -272,16 +272,6 @@ export const useGeneralSettings = (): SettingConfig => {
               },
             }),
           },
-          {
-            key: "checkUpdateOnStart",
-            label: "自动检查更新",
-            type: "switch",
-            description: "在每次开启软件时自动检查更新",
-            value: computed({
-              get: () => settingStore.checkUpdateOnStart,
-              set: (v) => (settingStore.checkUpdateOnStart = v),
-            }),
-          },
         ],
       },
       {

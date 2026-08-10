@@ -3,6 +3,10 @@
     <div class="set-list">
       <n-h3 prefix="bar"> 关于软件 </n-h3>
       <n-alert type="warning" style="margin-bottom: 12px">
+        <template #header>第三方修改版</template>
+        此版本非官方 SPlayer，而是它的 fork 版！
+      </n-alert>
+      <n-alert type="warning" style="margin-bottom: 12px">
         <template #header>本项目已进入维护模式</template>
         后续仅进行必要的维护与重大问题修复，不再主动开发新功能。新功能及后续版本请移步
         <n-button
@@ -23,41 +27,31 @@
           </n-tag>
         </n-flex>
         <n-flex>
-          <n-button
-            :loading="statusStore.updateCheck"
-            type="primary"
-            strong
-            secondary
-            @click="checkUpdate"
-          >
-            {{ statusStore.updateCheck ? "检查更新中" : "检查更新" }}
-          </n-button>
           <n-button v-if="isElectron" type="primary" strong secondary @click="handleOpenLog">
             打开日志
           </n-button>
         </n-flex>
       </n-card>
-      <n-collapse-transition :show="!!updateData">
-        <n-card class="set-item update-data">
-          <n-collapse arrow-placement="right">
-            <n-collapse-item name="version">
-              <template #header>
-                <n-flex class="version">
-                  <n-text>最新版本</n-text>
-                  <n-tag :bordered="false" size="small" type="primary">
-                    {{ newVersion?.version || "v0.0.0" }}
-                  </n-tag>
-                  <n-tag v-if="newVersion?.prerelease" class="test" size="small" type="warning">
-                    测试版
-                  </n-tag>
-                  <n-text :depth="3" class="time">{{ newVersion?.time }}</n-text>
-                </n-flex>
-              </template>
-              <div class="markdown-body" v-html="newVersion?.changelog" @click="jumpLink" />
-            </n-collapse-item>
-          </n-collapse>
-        </n-card>
-      </n-collapse-transition>
+    </div>
+    <div class="set-list">
+      <n-h3 prefix="bar"> 环境信息 </n-h3>
+      <n-card class="set-item env-info">
+        <template #header>
+          <n-flex justify="space-between" align="center">
+            <n-text depth="3" style="font-size: 12px"> 复制以下信息用于反馈问题 </n-text>
+            <n-button text type="primary" @click="handleCopyEnvInfo"> 复制 </n-button>
+          </n-flex>
+        </template>
+        <n-flex vertical :size="6" style="flex-flow: column !important">
+          <n-flex v-for="(item, index) in envItems" :key="index" :wrap="false" align="baseline">
+            <n-text class="env-label" :depth="3">{{ item.label }}</n-text>
+            <n-a v-if="item.url" :href="item.url" @click="handleEnvLinkClick($event, item.url)">
+              {{ item.value }}
+            </n-a>
+            <n-text v-else class="env-value" :depth="2">{{ item.value || "未知" }}</n-text>
+          </n-flex>
+        </n-flex>
+      </n-card>
     </div>
     <div class="set-list">
       <n-h3 prefix="bar"> 特别鸣谢 </n-h3>
@@ -168,51 +162,26 @@
         </n-collapse>
       </div>
     </Transition>
-    <div class="set-list">
-      <n-h3 prefix="bar"> 社区与资讯 </n-h3>
-      <n-flex :size="12" class="link">
-        <n-card
-          v-for="(item, index) in communityData"
-          :key="index"
-          class="link-item"
-          hoverable
-          @click="openLink(item.url)"
-        >
-          <SvgIcon :name="item.icon" :size="26" />
-          <n-text class="name"> {{ item.name }} </n-text>
-        </n-card>
-      </n-flex>
-    </div>
-    <div class="set-list">
-      <n-h3 prefix="bar"> 历史版本 </n-h3>
-      <n-collapse-transition :show="oldVersion?.length > 0">
-        <n-collapse accordion>
-          <n-collapse-item
-            v-for="(item, index) in oldVersion"
-            :key="index"
-            :title="item.version"
-            :name="item.version"
-          >
-            <n-card class="set-item update-data">
-              <n-flex class="version" justify="space-between">
-                <n-tag :bordered="false" size="small" type="primary">
-                  {{ item?.version || "v0.0.0" }}
-                </n-tag>
-                <n-text :depth="3" class="time">{{ item?.time }}</n-text>
-              </n-flex>
-              <div class="markdown-body" v-html="item?.changelog" @click="jumpLink" />
-            </n-card>
-          </n-collapse-item>
-        </n-collapse>
-      </n-collapse-transition>
-    </div>
+    <!--    <div class="set-list">-->
+    <!--      <n-h3 prefix="bar"> 社区与资讯 </n-h3>-->
+    <!--      <n-flex :size="12" class="link">-->
+    <!--        <n-card-->
+    <!--          v-for="(item, index) in communityData"-->
+    <!--          :key="index"-->
+    <!--          class="link-item"-->
+    <!--          hoverable-->
+    <!--          @click="openLink(item.url)"-->
+    <!--        >-->
+    <!--          <SvgIcon :name="item.icon" :size="26" />-->
+    <!--          <n-text class="name"> {{ item.name }} </n-text>-->
+    <!--        </n-card>-->
+    <!--      </n-flex>-->
+    <!--    </div>-->
   </div>
 </template>
 
 <script setup lang="ts">
-import type { UpdateLogType } from "@/types/main";
-import { getUpdateLog, openLink } from "@/utils/helper";
-import { debounce } from "lodash-es";
+import { openLink, copyData } from "@/utils/helper";
 import { useStatusStore } from "@/stores";
 import { isElectron } from "@/utils/env";
 import packageJson from "@/../package.json";
@@ -320,57 +289,62 @@ const specialContributors = [
 ];
 
 // 社区数据
-const communityData = [
-  {
-    name: "GitHub",
-    url: packageJson.github,
-    icon: "Github",
-  },
-  {
-    name: "官方博客",
-    url: packageJson.blog,
-    icon: "RssFeed",
-  },
-];
+// const communityData = [
+//   {
+//     name: "GitHub",
+//     url: packageJson.github,
+//     icon: "Github",
+//   },
+//   {
+//     name: "官方博客",
+//     url: packageJson.blog,
+//     icon: "RssFeed",
+//   },
+// ];
 
-// 更新日志数据
-const updateData = ref<UpdateLogType[] | null>(null);
-
-// 最新版本
-const newVersion = computed<UpdateLogType | undefined>(() => updateData.value?.[0]);
-
-// 历史版本
-const oldVersion = computed<UpdateLogType[]>(() => {
-  const oldData = updateData.value?.slice(1);
-  return oldData ? oldData : [];
-});
-
-// 检查更新
-const checkUpdate = debounce(
-  () => {
-    if (!isElectron) {
-      window.open(packageJson.github + "/releases", "_blank");
-      return;
-    }
-    statusStore.updateCheck = true;
-    window.electron.ipcRenderer.send("check-update", true);
-  },
-  300,
-  { leading: true, trailing: false },
-);
-
-// 链接跳转
-const jumpLink = (e: MouseEvent) => {
-  const target = e.target as HTMLElement;
-  if (target.tagName !== "A") {
-    return;
-  }
-  e.preventDefault();
-  openLink((target as HTMLAnchorElement).href);
+// 环境信息
+type EnvItem = {
+  label: string;
+  value?: string;
+  url?: string;
 };
 
-// 获取更新日志
-const getUpdateData = async () => (updateData.value = await getUpdateLog());
+// 提交时间
+const commitTimeAgo = useTimeAgo(new Date(__COMMIT_DATE__));
+// 运行环境版本
+const versions = isElectron ? window.electron.process.versions : {};
+// 操作系统信息
+const osInfo = isElectron ? window.api.system.osInfo : undefined;
+
+// 环境信息列表
+const envItems = computed<EnvItem[]>(() => [
+  {
+    label: "Commit",
+    value: __COMMIT_HASH__,
+    url: `${packageJson.github}/commit/${__COMMIT_HASH__}`,
+  },
+  {
+    label: "日期",
+    value: `${__COMMIT_DATE__} (${commitTimeAgo.value})`,
+  },
+  { label: "Electron", value: versions.electron },
+  { label: "Chromium", value: versions.chrome },
+  { label: "Node.js", value: versions.node },
+  { label: "V8", value: versions.v8 },
+  { label: "OS", value: osInfo ? `${osInfo.type} ${osInfo.arch} ${osInfo.release}` : undefined },
+]);
+
+// 复制环境信息
+const handleCopyEnvInfo = () => {
+  const info = envItems.value.map((item) => `${item.label}: ${item.value}`).join("\n");
+  copyData(info, "环境信息已复制");
+};
+
+// 打开环境信息链接
+const handleEnvLinkClick = (event: MouseEvent, url: string) => {
+  event.preventDefault();
+  openLink(url);
+};
 
 // 打开开发者模式
 const openDeveloperMode = useThrottleFn(() => {
@@ -391,7 +365,6 @@ const openDeveloperMode = useThrottleFn(() => {
 }, 100);
 
 onMounted(() => {
-  getUpdateData();
   getContributors();
 });
 </script>
@@ -403,23 +376,6 @@ onMounted(() => {
   }
   .n-tag {
     border-radius: 6px;
-  }
-}
-.update-data {
-  :deep(.n-card-content) {
-    flex-direction: column !important;
-    align-items: normal !important;
-  }
-  .version {
-    padding-left: 4px;
-    .n-tag {
-      pointer-events: none;
-      border-radius: 6px;
-    }
-    .time {
-      margin-left: auto;
-      font-size: 13px;
-    }
   }
 }
 .link {
@@ -443,6 +399,15 @@ onMounted(() => {
   cursor: default;
   :deep(.n-card-content) {
     padding: 12px 16px;
+  }
+}
+.env-info {
+  .env-label {
+    flex-shrink: 0;
+    width: 80px;
+  }
+  .env-value {
+    word-break: break-all;
   }
 }
 </style>

@@ -1,4 +1,5 @@
 import vue from "@vitejs/plugin-vue";
+import { execSync } from "child_process";
 import { defineConfig, loadEnv } from "electron-vite";
 import { resolve } from "path";
 import AutoImport from "unplugin-auto-import/vite";
@@ -8,6 +9,24 @@ import viteCompression from "vite-plugin-compression";
 import type { MainEnv } from "./env";
 // import VueDevTools from "vite-plugin-vue-devtools";
 import wasm from "vite-plugin-wasm";
+
+/** 获取当前 git 提交 */
+const getGitCommit = (): string => {
+  try {
+    return execSync("git rev-parse HEAD").toString().trim().slice(0, 7) || "unknown";
+  } catch {
+    return "unknown";
+  }
+};
+
+/** 获取当前 git 提交日期 */
+const getGitDate = (): string => {
+  try {
+    return execSync("git log -1 --format=%cI").toString().trim() || "unknown";
+  } catch {
+    return "unknown";
+  }
+};
 
 const commonResolve = {
   alias: {
@@ -60,6 +79,10 @@ export default defineConfig(({ mode }) => {
     // 渲染进程
     renderer: {
       root: ".",
+      define: {
+        __COMMIT_HASH__: JSON.stringify(getGitCommit()),
+        __COMMIT_DATE__: JSON.stringify(getGitDate()),
+      },
       plugins: [
         vue(),
         // mode === "development" && VueDevTools(),

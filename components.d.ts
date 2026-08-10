@@ -179,7 +179,6 @@ declare module 'vue' {
     TextContainer: typeof import('./src/components/Global/TextContainer.vue')['default']
     ThemeConfig: typeof import('./src/components/Modal/ThemeConfig.vue')['default']
     UniversalSetting: typeof import('./src/components/Setting/UniversalSetting.vue')['default']
-    UpdateApp: typeof import('./src/components/Modal/UpdateApp.vue')['default']
     UpdatePlaylist: typeof import('./src/components/Modal/UpdatePlaylist.vue')['default']
     User: typeof import('./src/components/Layout/User.vue')['default']
     UserAgreement: typeof import('./src/components/Modal/UserAgreement.vue')['default']

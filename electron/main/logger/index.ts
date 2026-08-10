@@ -58,7 +58,6 @@ export const ipcLog = log.scope("ipc");
 export const trayLog = log.scope("tray");
 export const thumbarLog = log.scope("thumbar");
 export const storeLog = log.scope("store");
-export const updateLog = log.scope("update");
 export const systemLog = log.scope("system");
 export const configLog = log.scope("config");
 export const windowsLog = log.scope("windows");
