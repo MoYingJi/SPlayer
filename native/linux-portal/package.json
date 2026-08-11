@@ -1,0 +1,15 @@
+{
+  "name": "linux-portal",
+  "main": "linux-portal.node",
+  "types": "index.d.ts",
+  "devDependencies": {
+    "@napi-rs/cli": "^3.5.1"
+  },
+  "napi": {
+    "binaryName": "linux-portal"
+  },
+  "scripts": {
+    "build": "napi build --release --no-const-enum",
+    "build:debug": "napi build --no-const-enum"
+  }
+}

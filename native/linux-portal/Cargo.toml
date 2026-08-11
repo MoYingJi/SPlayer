@@ -1,0 +1,22 @@
+[package]
+name = "linux-portal"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# XDG Desktop Portal
+ashpd = { version = "0.13.13", features = ["global_shortcuts"] }
+
+# N-API
+napi = { version = "3.8", features = ["tokio_rt", "napi9"] }
+napi-derive = "3.5"
+
+# Async Runtime
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+
+[build-dependencies]
+napi-build = "2.3"

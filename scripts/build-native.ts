@@ -17,6 +17,10 @@ const modules: NativeModule[] = [
     name: "taskbar-lyric",
     enabled: process.platform === "win32",
   },
+  {
+    name: "linux-portal",
+    enabled: process.platform === "linux",
+  },
   // 有人抱怨编译 wasm 总是有问题，暂时注释掉
   // {
   //   name: "ferrous-opencc-wasm",

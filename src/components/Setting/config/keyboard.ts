@@ -6,6 +6,16 @@ import ShortcutRecorder from "../components/ShortcutRecorder.vue";
 export const useKeyboardSettings = (): SettingConfig => {
   const shortcutStore = useShortcutStore();
 
+  // 获取全局快捷键后端模式（portal / electron）
+  void shortcutStore.initGlobalShortcutMode();
+
+  // portal 模式下无法自定义全局快捷键，禁用录制并提示
+  const isPortalMode = computed(() => shortcutStore.globalShortcutMode === "portal");
+
+  // 关闭 portal 后强制回退 electron，仅 Linux 下可见
+  const isPortalAvailable = computed(() => shortcutStore.shortcutBackendPreference === "auto");
+  const showBackendChoice = computed(() => isPortalMode.value || isPortalAvailable.value);
+
   const updateGlobalOpen = async (val: boolean) => {
     if (val) {
       await shortcutStore.registerAllShortcuts();
@@ -48,7 +58,11 @@ export const useKeyboardSettings = (): SettingConfig => {
             key: "globalOpen",
             label: "开启全局快捷键",
             type: "switch",
-            description: "可能会导致与其他软件相互冲突，请谨慎开启",
+            description: computed(() =>
+              isPortalMode.value
+                ? "当前使用 XDG Desktop Portal 管理系统全局快捷键，无法在应用内自定义，请通过系统确认弹窗设置"
+                : "可能会导致与其他软件相互冲突，请谨慎开启",
+            ),
             value: computed({
               get: () => shortcutStore.globalOpen,
               set: (v) => updateGlobalOpen(v),
@@ -59,6 +73,44 @@ export const useKeyboardSettings = (): SettingConfig => {
       {
         title: "全局快捷键更改",
         items: createShortcutItems(globalShortcutKeys, true),
+      },
+{
+        title: "系统快捷键设置",
+        show: isPortalMode,
+        items: [
+          {
+            key: "openPortalShortcutSettings",
+            label: "打开系统快捷键设置",
+            type: "button",
+            buttonLabel: "打开",
+            description: "SPlayer 的全局快捷键由桌面环境管理，请在此修改",
+            action: () => {
+              window.electron.ipcRenderer.send("open-portal-shortcut-settings");
+            },
+          },
+        ],
+      },
+      {
+        title: "快捷键后端",
+        show: showBackendChoice,
+        items: [
+          {
+            key: "shortcutBackendPreference",
+            label: "使用 Portal 管理全局快捷键",
+            type: "switch",
+            value: computed({
+              get: () => shortcutStore.shortcutBackendPreference === "auto",
+              set: (v) => {
+                shortcutStore.setShortcutBackendPreference(v ? "auto" : "electron");
+              },
+            }),
+            description: computed(() =>
+              isPortalMode.value
+                ? "关闭后使用 Electron 原生快捷键注册（需要重启应用）"
+                : "Portal 可用时通过桌面环境管理全局快捷键（需要重启应用）",
+            ),
+          },
+        ],
       },
       {
         title: "恢复全局默认",

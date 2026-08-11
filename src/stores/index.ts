@@ -1,4 +1,4 @@
-export { useShortcutStore } from "./shortcut";
+export { DEFAULT_GLOBAL_SHORTCUTS, useShortcutStore } from "./shortcut";
 export { useSettingStore } from "./setting";
 export { useStatusStore } from "./status";
 export { useMusicStore } from "./music";

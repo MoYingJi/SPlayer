@@ -2,6 +2,7 @@
 members = [
   "native/external-media-integration",
   "native/ferrous-opencc-wasm",
+  "native/linux-portal",
   "native/taskbar-lyric",
   "native/tools",
 ]

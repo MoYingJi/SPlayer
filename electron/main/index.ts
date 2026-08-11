@@ -8,7 +8,7 @@ import { shutdownMedia } from "./ipc/ipc-media";
 import { processLog } from "./logger";
 import { MpvService } from "./services/MpvService";
 import { SocketService } from "./services/SocketService";
-import { unregisterShortcuts } from "./shortcut";
+import { disposeShortcuts, unregisterShortcuts } from "./shortcut";
 import { initTray, MainTray } from "./tray";
 import { isMac } from "./utils/config";
 import { trySendCustomProtocol } from "./utils/protocol";
@@ -153,8 +153,9 @@ class MainProcess {
       this.isQuit = true;
       setAppQuitting();
       (async () => {
-        // 注销全部快捷键
-        unregisterShortcuts();
+        // 注销全部快捷键并释放后端资源
+        await unregisterShortcuts();
+        disposeShortcuts();
         // 清理媒体集成资源
         shutdownMedia();
         // 关闭任务栏歌词窗口（停止原生 watcher / service）

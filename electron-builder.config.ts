@@ -72,6 +72,11 @@ const config: Configuration = {
       to: "native",
       filter: ["*.node"],
     },
+    {
+      from: "native/linux-portal",
+      to: "native",
+      filter: ["*.node"],
+    },
   ],
   win: {
     // 可执行文件名

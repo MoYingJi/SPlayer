@@ -75,6 +75,8 @@ export interface StoreType {
       enabled: boolean;
     };
   };
+  /** 快捷键后端策略（仅 Linux） */
+  shortcutBackend: "auto" | "electron";
 }
 
 /**
@@ -118,6 +120,8 @@ export const useStore = () => {
       },
       downloadThreadCount: 8,
       enableDownloadHttp2: true,
+      // Linux：默认自动选择（portal 可用则用它），可强制回退 electron
+      shortcutBackend: "auto",
     },
   });
 };

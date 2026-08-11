@@ -20,9 +20,10 @@
     <n-popover trigger="focus" v-if="allowGlobal">
       <template #trigger>
         <n-input
-          :value="shortcutItem.globalShortcut"
-          :disabled="!shortcutStore.globalOpen"
+          :value="globalShortcutDisplay"
+          :disabled="isPortalMode || !shortcutStore.globalOpen"
           :status="shortcutItem.globalShortcut && shortcutItem.isRegistered ? 'error' : undefined"
+          :title="isPortalMode ? '系统快捷键由 XDG Desktop Portal 管理，无法自定义' : undefined"
           placeholder="未设置"
           readonly
           class="shortcut-input"
@@ -32,7 +33,7 @@
           @keyup="keyHandled = ''"
         >
           <template #prefix>
-            <n-text :depth="3">全局</n-text>
+            <n-text :depth="3">{{ isPortalMode ? "Portal" : "全局" }}</n-text>
           </template>
         </n-input>
       </template>
@@ -42,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { useShortcutStore } from "@/stores";
+import { DEFAULT_GLOBAL_SHORTCUTS, useShortcutStore } from "@/stores";
 import { formatForGlobalShortcut } from "@/utils/helper";
 import { includes, some } from "lodash-es";
 import { ref, computed } from "vue";
@@ -54,6 +55,14 @@ const props = defineProps<{
 
 const shortcutStore = useShortcutStore();
 const shortcutItem = computed(() => shortcutStore.shortcutList[props.shortcutKey]);
+
+// portal 模式下无法自定义全局快捷键，只显示内置默认值
+const isPortalMode = computed(() => shortcutStore.globalShortcutMode === "portal");
+const globalShortcutDisplay = computed(() =>
+  isPortalMode.value
+    ? (DEFAULT_GLOBAL_SHORTCUTS[props.shortcutKey] ?? "")
+    : shortcutItem.value.globalShortcut,
+);
 
 // 选中状态
 const isFocus = ref(false);
