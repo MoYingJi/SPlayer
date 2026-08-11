@@ -144,16 +144,16 @@
         </n-button>
 
         <!-- Color Picker -->
-        <n-color-picker
-          v-else-if="item.type === 'color-picker'"
-          v-model:value="modelValue"
-          class="set"
-          :show-alpha="item.componentProps?.showAlpha ?? false"
-          :modes="item.componentProps?.modes ?? ['hex']"
-          :disabled="isDisabled"
-          :title="title"
-          @complete="handleAction"
-        />
+        <n-flex v-else-if="item.type === 'color-picker'" class="set">
+          <n-color-picker
+            v-model:value="modelValue"
+            :show-alpha="item.componentProps?.showAlpha ?? false"
+            :modes="item.componentProps?.modes ?? ['hex']"
+            :disabled="isDisabled"
+            :title="title"
+            @complete="handleAction"
+          />
+        </n-flex>
 
         <!-- Custom -->
         <component
