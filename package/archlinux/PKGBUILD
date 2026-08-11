@@ -120,12 +120,6 @@ build() {
     local electronDist="/usr/lib/electron${_electronversion}"
     NODE_ENV=production     pnpm run build
     NODE_ENV=production     pnpm -c exec "electron-builder --linux dir -c.electronDist=${electronDist} --config electron-builder.config.ts"
-
-    rm -rf "${srcdir}/splayer/dist/linux-"*/resources/app.asar.unpacked/node_modules/font-list/libs/{darwin,win32}
-    # 都是 better-sqlite3 干的！
-    rm -rf "${srcdir}/splayer/dist/linux-"*/resources/app.asar.unpacked/node_modules/better-sqlite3/{lib,prebuilds}/{darwin,win32,linuxmusl}-*.*
-    if [ "$CARCH" = "x86_64" ]; then rm -rf "${srcdir}/splayer/dist/linux-"*/resources/app.asar.unpacked/node_modules/better-sqlite3/{lib,prebuilds}/linux-arm64.*; fi
-    if [ "$CARCH" = "aarch64" ]; then rm -rf "${srcdir}/splayer/dist/linux-"*/resources/app.asar.unpacked/node_modules/better-sqlite3/{lib,prebuilds}/linux-x64.*; fi
 }
 
 package() {

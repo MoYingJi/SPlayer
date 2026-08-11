@@ -10,6 +10,8 @@ const config: Configuration = {
   directories: {
     buildResources: "build",
   },
+  // 打包后清理
+  afterPack: "./scripts/after-pack.ts",
   // 包含在最终应用程序构建中的文件列表
   // 使用通配符 ! 表示排除不需要的文件
   files: [
