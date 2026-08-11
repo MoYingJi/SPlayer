@@ -228,7 +228,7 @@ const createTrayMenu = (win: BrowserWindow): MenuItemConstructorOptions[] => {
       id: "toggle-taskbar-lyric",
       label: `${(isMac ? isMacosLyricEnabled : taskbarLyricShow) ? "关闭" : "开启"}${isMac ? "状态栏" : "任务栏"}歌词`,
       icon: getMenuIcon("lyric"),
-      // visible: isWin || isMac,
+      visible: isWin || isMac,
       click: () => win.webContents.send("toggle-taskbar-lyric"),
     },
     {

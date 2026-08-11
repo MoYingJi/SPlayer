@@ -331,7 +331,7 @@ export const createTaskbarLyricWindow = (): BrowserWindow | null => {
   getMainTray()?.setTaskbarLyricShow(true);
   useStore().set("windowStates.taskbarLyric.visible", true);
   return taskbarLyricWindow;
-};;
+};
 
 /** 请求关闭任务栏歌词窗口，实际清理由 "closed" 事件统一处理 */
 export const closeTaskbarLyricWindow = (): void => {
