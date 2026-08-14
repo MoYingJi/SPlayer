@@ -43,7 +43,7 @@ export const useKeyboardSettings = (): SettingConfig => {
   };
 
   // 页面快捷键的 Key
-  const pageShortcutKeys = ["openPlayer", "openPlayList", "closePlayer"];
+  const pageShortcutKeys = ["openPlayer", "openPlayList", "closePlayer", "searchInPage"];
   // 全局快捷键的 Key
   const globalShortcutKeys = Object.keys(shortcutStore.shortcutList).filter(
     (key) => !pageShortcutKeys.includes(key),

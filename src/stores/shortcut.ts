@@ -39,6 +39,7 @@ interface ShortcutStore {
     openPlayer: ShortcutType;
     openPlayList: ShortcutType;
     closePlayer: ShortcutType;
+    searchInPage: ShortcutType;
   };
 }
 
@@ -113,6 +114,12 @@ export const useShortcutStore = defineStore("shortcut", {
       closePlayer: {
         name: "关闭播放界面",
         shortcut: "Escape",
+        globalShortcut: "",
+      },
+      // 页面内搜索
+      searchInPage: {
+        name: "页面内搜索",
+        shortcut: "Slash",
         globalShortcut: "",
       },
     },

@@ -91,6 +91,7 @@
           clearable
           round
           @input="listSearch"
+          data-search-input
         >
           <template #prefix>
             <SvgIcon name="Search" />

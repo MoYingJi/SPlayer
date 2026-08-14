@@ -117,7 +117,13 @@ const keyDownEvent = debounce((event: KeyboardEvent) => {
   const target = event.target as HTMLElement;
   // 排除元素
   const extendsDom = ["input", "textarea"];
-  if (extendsDom.includes(target.tagName.toLowerCase())) return;
+  if (extendsDom.includes(target.tagName.toLowerCase())) {
+    // 按 Esc 使输入框失焦
+    if (event.code === "Escape") {
+      target.blur();
+    }
+    return;
+  }
   event.preventDefault();
   event.stopPropagation();
   // 获取按键信息
@@ -189,6 +195,15 @@ const keyDownEvent = debounce((event: KeyboardEvent) => {
           // 打开播放列表（任意界面）
           statusStore.playListShow = !statusStore.playListShow;
           break;
+        case "searchInPage": {
+          // 聚焦页面内搜索框（仅非播放界面）
+          if (statusStore.showFullPlayer) break;
+          const el = document.querySelector<HTMLInputElement>("[data-search-input] input");
+          if (!el || el.disabled) break;
+          el.focus();
+          if (document.activeElement === el) el.select();
+          break;
+        }
         default:
           break;
       }

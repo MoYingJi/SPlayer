@@ -194,6 +194,7 @@
                 placeholder="模糊搜索"
                 clearable
                 round
+                data-search-input
                 @update:value="handleSearch"
               >
                 <template #prefix>

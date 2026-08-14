@@ -124,6 +124,7 @@ const getShortcut = (e: KeyboardEvent): string => {
     "Numpad9",
     // 功能键
     "Space",
+    "Slash",
     "ArrowLeft",
     "ArrowUp",
     "ArrowRight",

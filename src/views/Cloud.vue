@@ -61,6 +61,7 @@
         placeholder="模糊搜索"
         clearable
         round
+        data-search-input
       >
         <template #prefix>
           <SvgIcon name="Search" />
