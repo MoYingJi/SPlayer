@@ -17,10 +17,14 @@
         </div>
       </template>
       <Transition name="fade" mode="out-in">
-        <div v-if="hasQueueContent" class="playlist-body">
-          <!-- FIFO 临时待播区不参与普通列表排序 -->
-          <section class="next-queue-section">
-            <div class="section-header">
+        <div v-if="hasQueueContent" ref="playlistBodyRef" class="playlist-body">
+          <!-- 固定吸附区：顶栏 + 吸顶卡，不随列表滚动，毛玻璃直接采样底层背景 -->
+          <section ref="stickyZoneRef" class="sticky-zone">
+            <div
+              ref="nextQueueHeaderRef"
+              class="section-header"
+              :class="{ 'is-collapsed': nextQueueCollapsed }"
+            >
               <div class="section-heading">
                 <SvgIcon :size="20" name="PlayNext" />
                 <n-text class="section-name">接下来播放</n-text>
@@ -39,51 +43,133 @@
                 清空接下来播放
               </n-button>
             </div>
-            <n-scrollbar
-              v-if="hasPriorityCurrentSong || dataStore.nextPlayQueue.length"
-              ref="nextQueueListRef"
-              class="next-queue-list"
+            <!-- 下一首吸顶常驻，粘滞范围延伸至整个滚动内容 -->
+            <div
+              v-if="dataStore.nextPlayQueue.length"
+              ref="stickyTrackRef"
+              class="song-node is-sticky-track next-queue-item"
+              :class="{ 'is-sticky-active': isTrackStuck }"
             >
-              <div class="next-queue-content">
-                <div v-if="hasPriorityCurrentSong" class="song-node">
-                  <div class="song-item queue-item priority-current-item on">
-                    <div class="index">
-                      <SvgIcon :size="20" name="Music" />
-                    </div>
-                    <div class="data">
-                      <n-text class="name text-hidden">
-                        {{ musicStore.playSong.name || "未知曲目" }}
-                      </n-text>
-                      <div v-if="Array.isArray(musicStore.playSong?.artists)" class="artists">
-                        <n-text
-                          v-for="ar in musicStore.playSong.artists"
-                          :key="ar.id"
-                          depth="3"
-                          class="ar"
-                        >
-                          {{
-                            settingStore.hideBracketedContent ? removeBrackets(ar.name) : ar.name
-                          }}
-                        </n-text>
-                      </div>
-                      <div v-else-if="musicStore.playSong.type === 'radio'" class="artists">
-                        <n-text class="ar" depth="3">播客电台</n-text>
-                      </div>
-                      <div v-else class="artists">
-                        <n-text class="ar" depth="3">
-                          {{
-                            settingStore.hideBracketedContent
-                              ? removeBrackets(musicStore.playSong?.artists)
-                              : musicStore.playSong?.artists || "未知艺术家"
-                          }}
-                        </n-text>
-                      </div>
-                    </div>
-                    <n-text class="current-label">当前播放</n-text>
+              <div
+                class="song-item queue-item"
+                v-debounce="() => playNextQueueEntry(dataStore.nextPlayQueue[0].queueId)"
+              >
+                <div class="index">
+                  <SvgIcon :size="20" name="PlayNext" />
+                </div>
+                <div class="data">
+                  <n-text class="name text-hidden">
+                    {{ dataStore.nextPlayQueue[0].song.name || "未知曲目" }}
+                  </n-text>
+                  <div
+                    v-if="Array.isArray(dataStore.nextPlayQueue[0].song?.artists)"
+                    class="artists"
+                  >
+                    <n-text
+                      v-for="ar in dataStore.nextPlayQueue[0].song.artists"
+                      :key="ar.id"
+                      depth="3"
+                      class="ar"
+                    >
+                      {{ settingStore.hideBracketedContent ? removeBrackets(ar.name) : ar.name }}
+                    </n-text>
+                  </div>
+                  <div v-else-if="dataStore.nextPlayQueue[0].song.type === 'radio'" class="artists">
+                    <n-text class="ar" depth="3">播客电台</n-text>
+                  </div>
+                  <div v-else class="artists">
+                    <n-text class="ar" depth="3">
+                      {{
+                        settingStore.hideBracketedContent
+                          ? removeBrackets(dataStore.nextPlayQueue[0].song?.artists)
+                          : dataStore.nextPlayQueue[0].song?.artists || "未知艺术家"
+                      }}
+                    </n-text>
                   </div>
                 </div>
                 <div
-                  v-for="queueEntry in dataStore.nextPlayQueue"
+                  class="remove"
+                  @click.stop="removeNextQueueEntry(dataStore.nextPlayQueue[0].queueId)"
+                >
+                  <SvgIcon :size="20" name="Delete" />
+                </div>
+                <div class="next-artist">
+                  <n-text
+                    v-if="Array.isArray(dataStore.nextPlayQueue[0].song?.artists)"
+                    class="text-hidden"
+                    depth="3"
+                  >
+                    {{
+                      dataStore.nextPlayQueue[0].song.artists
+                        .map((ar) =>
+                          settingStore.hideBracketedContent ? removeBrackets(ar.name) : ar.name,
+                        )
+                        .join(" / ")
+                    }}
+                  </n-text>
+                  <n-text v-else-if="dataStore.nextPlayQueue[0].song.type === 'radio'" depth="3">
+                    播客电台
+                  </n-text>
+                  <n-text v-else class="text-hidden" depth="3">
+                    {{
+                      settingStore.hideBracketedContent
+                        ? removeBrackets(dataStore.nextPlayQueue[0].song?.artists)
+                        : dataStore.nextPlayQueue[0].song?.artists || "未知艺术家"
+                    }}
+                  </n-text>
+                </div>
+              </div>
+            </div>
+          </section>
+          <!-- 独立滚动区：优先级 / 待播队列 / 播放列表，内容不会滚入上方吸附区 -->
+          <div class="playlist-scroll">
+            <n-scrollbar
+              ref="bodyScrollerRef"
+              class="playlist-body-scroller"
+              @scroll="handleBodyScroll"
+            >
+              <div
+                v-if="hasPriorityCurrentSong"
+                ref="nextQueuePriorityRef"
+                class="song-node next-queue-item"
+              >
+                <div class="song-item queue-item priority-current-item on">
+                  <div class="index">
+                    <SvgIcon :size="20" name="Music" />
+                  </div>
+                  <div class="data">
+                    <n-text class="name text-hidden">
+                      {{ musicStore.playSong.name || "未知曲目" }}
+                    </n-text>
+                    <div v-if="Array.isArray(musicStore.playSong?.artists)" class="artists">
+                      <n-text
+                        v-for="ar in musicStore.playSong.artists"
+                        :key="ar.id"
+                        depth="3"
+                        class="ar"
+                      >
+                        {{ settingStore.hideBracketedContent ? removeBrackets(ar.name) : ar.name }}
+                      </n-text>
+                    </div>
+                    <div v-else-if="musicStore.playSong.type === 'radio'" class="artists">
+                      <n-text class="ar" depth="3">播客电台</n-text>
+                    </div>
+                    <div v-else class="artists">
+                      <n-text class="ar" depth="3">
+                        {{
+                          settingStore.hideBracketedContent
+                            ? removeBrackets(musicStore.playSong?.artists)
+                            : musicStore.playSong?.artists || "未知艺术家"
+                        }}
+                      </n-text>
+                    </div>
+                  </div>
+                  <n-text class="current-label">当前播放</n-text>
+                </div>
+              </div>
+              <div v-if="restPlayQueue.length" ref="restQueueListRef" class="next-queue-list">
+                <div
+                  v-for="queueEntry in restPlayQueue"
                   :key="queueEntry.queueId"
                   class="song-node"
                 >
@@ -129,121 +215,144 @@
                   </div>
                 </div>
               </div>
-            </n-scrollbar>
-            <n-text v-else class="queue-empty" depth="3">暂无待播歌曲</n-text>
-          </section>
-
-          <section class="current-playlist-section">
-            <div class="section-header">
-              <div class="section-heading">
-                <SvgIcon :size="20" name="MusicList" />
-                <n-text class="section-name">当前播放列表</n-text>
-                <n-text class="section-count" depth="3">
-                  {{ dataStore.playList.length }} 首
-                </n-text>
+              <div
+                v-if="!hasPriorityCurrentSong && !dataStore.nextPlayQueue.length"
+                ref="queueEmptyRef"
+                class="queue-empty"
+              >
+                <n-text depth="3">暂无待播歌曲</n-text>
               </div>
-            </div>
-            <!-- 普通列表继续使用虚拟滚动和独立索引 -->
-            <VirtualScroll
-              v-if="dataStore.playList.length"
-              ref="playListRef"
-              :item-height="80"
-              :item-fixed="true"
-              :items="playListData"
-              :default-scroll-index="isPlaylistSource ? statusStore.playIndex : 0"
-              class="playlist-list"
-              :class="{ 'is-dragging-global': isDragging }"
-              height="100%"
-            >
-              <template #default="{ item: songData, index }">
-                <div class="song-node">
-                  <div
-                    v-if="
-                      isDragging &&
-                      dropIndicator.index === index &&
-                      dropIndicator.position === 'top'
-                    "
-                    class="drop-line line-top"
-                  ></div>
-                  <div
-                    v-if="
-                      isDragging &&
-                      dropIndicator.index === index &&
-                      dropIndicator.position === 'bottom'
-                    "
-                    class="drop-line line-bottom"
-                  ></div>
 
-                  <div
-                    :key="songData.key"
-                    :class="[
-                      'song-item',
-                      { on: isPlaylistSource && statusStore.playIndex === index },
-                      { 'is-dragging': isDragging && draggedIndex === index },
-                    ]"
-                    v-debounce="
-                      () => {
-                        player.togglePlayIndex(index, true);
-                        statusStore.playListShow = false;
-                      }
-                    "
-                  >
-                    <!-- 拖拽手柄 -->
-                    <div
-                      class="drag-handle"
-                      @mousedown="handlePointerDown($event, index, songData.name || '未知曲目')"
-                      @touchstart.passive="
-                        handlePointerDown($event, index, songData.name || '未知曲目')
-                      "
-                      @click.stop
-                    >
-                      <SvgIcon :size="20" name="Menu" />
-                    </div>
-
-                    <!-- 序号 -->
-                    <div class="index">
-                      <n-text
-                        v-if="!isPlaylistSource || statusStore.playIndex !== index"
-                        :class="['num', { big: index + 1 > 9999 }]"
-                        depth="3"
-                      >
-                        {{ index + 1 }}
-                      </n-text>
-                      <SvgIcon v-else :size="20" name="Music" />
-                    </div>
-                    <!-- 信息 -->
-                    <div class="data">
-                      <n-text class="name text-hidden">{{ songData.name || "未知曲目" }}</n-text>
-                      <div v-if="Array.isArray(songData?.artists)" class="artists">
-                        <n-text v-for="ar in songData.artists" :key="ar.id" depth="3" class="ar">
-                          {{
-                            settingStore.hideBracketedContent ? removeBrackets(ar.name) : ar.name
-                          }}
-                        </n-text>
-                      </div>
-                      <div v-else-if="songData.type === 'radio'" class="artists">
-                        <n-text class="ar" depth="3">播客电台</n-text>
-                      </div>
-                      <div v-else class="artists">
-                        <n-text class="ar" depth="3">
-                          {{
-                            settingStore.hideBracketedContent
-                              ? removeBrackets(songData?.artists)
-                              : songData?.artists || "未知艺术家"
-                          }}
-                        </n-text>
-                      </div>
-                    </div>
-                    <!-- 移除 -->
-                    <div class="remove" @click.stop="player.removeSongIndex(index)">
-                      <SvgIcon :size="20" name="Delete" />
-                    </div>
+              <section class="current-playlist-section">
+                <div ref="playlistHeaderRef" class="section-header playlist-header">
+                  <div class="section-heading">
+                    <SvgIcon :size="20" name="MusicList" />
+                    <n-text class="section-name">当前播放列表</n-text>
                   </div>
+                  <n-text class="section-count">{{ dataStore.playList.length }} 首</n-text>
                 </div>
-              </template>
-            </VirtualScroll>
-            <n-empty v-else description="当前播放列表暂无歌曲" class="section-empty" size="small" />
-          </section>
+                <!-- 普通列表继续使用虚拟滚动和独立索引 -->
+                <VirtualScroll
+                  v-if="dataStore.playList.length"
+                  ref="playListRef"
+                  :item-height="80"
+                  :item-fixed="true"
+                  :items="playListData"
+                  :default-scroll-index="isPlaylistSource ? statusStore.playIndex : 0"
+                  :height="playlistViewportHeight"
+                  :padding-bottom="16"
+                  :external-scroll="true"
+                  :get-external-scroll-top="getVirtualScrollTop"
+                  :scroll-external-to="scrollVirtualTo"
+                  :get-external-scroll-rect="getVirtualScrollRect"
+                  class="playlist-list"
+                  :class="{ 'is-dragging-global': isDragging }"
+                >
+                  <template #default="{ item: songData, index }">
+                    <div class="song-node">
+                      <div
+                        v-if="
+                          isDragging &&
+                          dropIndicator.index === index &&
+                          dropIndicator.position === 'top'
+                        "
+                        class="drop-line line-top"
+                      ></div>
+                      <div
+                        v-if="
+                          isDragging &&
+                          dropIndicator.index === index &&
+                          dropIndicator.position === 'bottom'
+                        "
+                        class="drop-line line-bottom"
+                      ></div>
+
+                      <div
+                        :key="songData.key"
+                        :class="[
+                          'song-item',
+                          { on: isPlaylistSource && statusStore.playIndex === index },
+                          { 'is-dragging': isDragging && draggedIndex === index },
+                        ]"
+                        v-debounce="
+                          () => {
+                            player.togglePlayIndex(index, true);
+                            statusStore.playListShow = false;
+                          }
+                        "
+                      >
+                        <!-- 拖拽手柄 -->
+                        <div
+                          class="drag-handle"
+                          @mousedown="handlePointerDown($event, index, songData.name || '未知曲目')"
+                          @touchstart.passive="
+                            handlePointerDown($event, index, songData.name || '未知曲目')
+                          "
+                          @click.stop
+                        >
+                          <SvgIcon :size="20" name="Menu" />
+                        </div>
+
+                        <!-- 序号 -->
+                        <div class="index">
+                          <n-text
+                            v-if="!isPlaylistSource || statusStore.playIndex !== index"
+                            :class="['num', { big: index + 1 > 9999 }]"
+                            depth="3"
+                          >
+                            {{ index + 1 }}
+                          </n-text>
+                          <SvgIcon v-else :size="20" name="Music" />
+                        </div>
+                        <!-- 信息 -->
+                        <div class="data">
+                          <n-text class="name text-hidden">{{
+                            songData.name || "未知曲目"
+                          }}</n-text>
+                          <div v-if="Array.isArray(songData?.artists)" class="artists">
+                            <n-text
+                              v-for="ar in songData.artists"
+                              :key="ar.id"
+                              depth="3"
+                              class="ar"
+                            >
+                              {{
+                                settingStore.hideBracketedContent
+                                  ? removeBrackets(ar.name)
+                                  : ar.name
+                              }}
+                            </n-text>
+                          </div>
+                          <div v-else-if="songData.type === 'radio'" class="artists">
+                            <n-text class="ar" depth="3">播客电台</n-text>
+                          </div>
+                          <div v-else class="artists">
+                            <n-text class="ar" depth="3">
+                              {{
+                                settingStore.hideBracketedContent
+                                  ? removeBrackets(songData?.artists)
+                                  : songData?.artists || "未知艺术家"
+                              }}
+                            </n-text>
+                          </div>
+                        </div>
+                        <!-- 移除 -->
+                        <div class="remove" @click.stop="player.removeSongIndex(index)">
+                          <SvgIcon :size="20" name="Delete" />
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </VirtualScroll>
+                <n-empty
+                  v-else
+                  description="当前播放列表暂无歌曲"
+                  class="section-empty"
+                  size="small"
+                />
+              </section>
+            </n-scrollbar>
+          </div>
         </div>
         <n-empty
           v-else
@@ -324,9 +433,75 @@ const settingStore = useSettingStore();
 const player = usePlayerController();
 
 const playListRef = ref<InstanceType<typeof VirtualScroll> | null>(null);
-const nextQueueListRef = ref<InstanceType<typeof NScrollbar> | null>(null);
+const bodyScrollerRef = ref<InstanceType<typeof NScrollbar> | null>(null);
+const playlistBodyRef = ref<HTMLElement | null>(null);
+const playlistHeaderRef = ref<HTMLElement | null>(null);
+const stickyZoneRef = ref<HTMLElement | null>(null);
 const playListItemKeys = new WeakMap<object, number>();
 let nextPlayListItemKey = 0;
+
+// 播放列表虚拟视口高度：与抽屉内容可视高度保持一致
+const { height: bodyHeight } = useElementSize(playlistBodyRef);
+// 「接下来播放」滚动区（优先级/待播队列/空提示）总高度，用于虚拟列表起始偏移
+const queueSectionHeight = computed(
+  () =>
+    (nextQueuePriorityHeight.value || 0) +
+    (restQueueListHeight.value || 0) +
+    (queueEmptyHeight.value || 0),
+);
+// 播放列表标题区域高度
+const { height: playlistHeaderHeight } = useElementSize(playlistHeaderRef);
+// 固定吸附区高度（顶栏 + 吸顶卡），卡片压缩时随之收缩
+const { height: stickyZoneHeight } = useElementSize(stickyZoneRef);
+const nextQueuePriorityRef = ref<HTMLElement | null>(null);
+const restQueueListRef = ref<HTMLElement | null>(null);
+const queueEmptyRef = ref<HTMLElement | null>(null);
+const { height: nextQueuePriorityHeight } = useElementSize(nextQueuePriorityRef);
+const { height: restQueueListHeight } = useElementSize(restQueueListRef);
+const { height: queueEmptyHeight } = useElementSize(queueEmptyRef);
+const nextQueueCollapsed = ref(false);
+// 「下一首」是否压缩（吸附区卡片形态切换），滚动超过阈值触发、回顶恢复
+const isTrackStuck = ref(false);
+// 待播队列跳过吸顶的首项
+const restPlayQueue = computed(() => dataStore.nextPlayQueue.slice(1));
+
+// 虚拟列表可视高度：吸附区下方滚动区高度
+const playlistViewportHeight = computed(() =>
+  Math.max(0, (bodyHeight.value || 0) - (stickyZoneHeight.value || 0)),
+);
+
+// 虚拟列表相对滚动容器的起始偏移（滚动区内队列区域总高度）
+const virtualOffset = computed(() => queueSectionHeight.value + playlistHeaderHeight.value);
+
+// 外层滚动容器底层可滚动元素（naive 自定义滚动条）
+const getBodyScrollElement = () =>
+  document.querySelector(
+    "#main-playlist .playlist-body-scroller .n-scrollbar-container",
+  ) as HTMLElement | null;
+
+// 外层滚动事件 -> 驱动虚拟列表视口
+const handleBodyScroll = (event: Event) => {
+  const top = (event.target as HTMLElement)?.scrollTop || 0;
+  // 顶栏折叠（仅隐藏清空按钮）滞回，避免阈值附近抖动
+  if (!nextQueueCollapsed.value && top > 80) nextQueueCollapsed.value = true;
+  else if (nextQueueCollapsed.value && top < 40) nextQueueCollapsed.value = false;
+  // 吸顶卡压缩：滚动超过阈值即压缩，明显回顶才恢复
+  if (!isTrackStuck.value && top > 40) isTrackStuck.value = true;
+  else if (isTrackStuck.value && top < 2) isTrackStuck.value = false;
+  playListRef.value?.setExternalScrollTop(Math.max(0, top - virtualOffset.value));
+};
+
+// 虚拟列表内部滚动位置（外层滚动位置减去上方偏移）
+const getVirtualScrollTop = () =>
+  Math.max(0, (getBodyScrollElement()?.scrollTop || 0) - virtualOffset.value);
+
+// 虚拟列表滚动到内部位置 -> 联动外层容器
+const scrollVirtualTo = (top: number, behavior: ScrollBehavior = "auto") => {
+  bodyScrollerRef.value?.scrollTo({ top: top + virtualOffset.value, behavior });
+};
+
+// 拖拽定位所需的外层可视区矩形
+const getVirtualScrollRect = () => getBodyScrollElement()?.getBoundingClientRect() ?? null;
 
 const isPlaylistSource = computed(() => musicStore.playbackSource === "playlist");
 const hasPriorityCurrentSong = computed(
@@ -369,11 +544,11 @@ const playListData = computed(() => {
 // 定位待播当前项或普通播放列表中的当前歌曲
 const scrollToCurrentSong = () => {
   if (hasPriorityCurrentSong.value) {
-    nextQueueListRef.value?.scrollTo({ top: 0, behavior: "smooth" });
+    bodyScrollerRef.value?.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
   if (!canLocateCurrentSong.value) return;
-  playListRef.value?.scrollToIndex(statusStore.playIndex);
+  playListRef.value?.scrollToIndex(statusStore.playIndex, "smooth");
 };
 
 // 播放指定临时待播项
@@ -449,6 +624,10 @@ const {
   overflow: hidden;
 }
 
+.playlist-body-scroller {
+  height: 100%;
+}
+
 .section-header {
   display: flex;
   align-items: center;
@@ -475,44 +654,128 @@ const {
   }
 }
 
-.next-queue-section {
-  flex: 0 0 auto;
-  padding: 8px 16px;
-  border-bottom: 1px solid rgba(var(--text-color), 0.08);
+.sticky-zone {
+  flex: none;
+  position: relative;
+  z-index: 2;
+  //background-color: var(--n-color);
+
+  // 顶栏：随吸附区固定，折叠仅隐藏清空按钮
+  > .section-header {
+    margin: 8px 16px 0;
+    padding: 8px 0;
+
+    &.is-collapsed {
+      .clear-next {
+        display: none;
+      }
+    }
+  }
 
   .clear-next {
     flex-shrink: 0;
     font-size: 12px;
   }
 
-  .next-queue-list {
-    max-height: min(240px, 32vh);
+  // 吸顶卡：固定于吸附区，滚动触发压缩形态
+  .song-node.is-sticky-track {
+    margin: 0 16px;
+    padding: 8px 0;
+
+    .next-artist {
+      display: none;
+    }
+
+    // 压缩/展开过渡
+    .song-item {
+      transition:
+        min-height 0.25s,
+        height 0.25s,
+        border-color 0.3s,
+        background-color 0.3s,
+        opacity 0.2s;
+    }
+
+    // 压缩单行：歌名撑满优先完整显示，歌手居右顶替删除按钮
+    &.is-sticky-active {
+      .song-item {
+        min-height: 36px;
+        height: 36px;
+        padding: 0 12px;
+
+        .data {
+          padding: 0;
+
+          .artists {
+            display: none;
+          }
+        }
+
+        .remove,
+        .drag-handle {
+          display: none;
+        }
+
+        .next-artist {
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+          max-width: 55%;
+          margin-left: 8px;
+          font-size: 12px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+    }
+  }
+}
+
+// 独立滚动区：吸附区下方，内容不会滚入吸附区
+.playlist-scroll {
+  flex: 1;
+  min-height: 0;
+
+  // 滚动区内的优先级 / 待播队列使用左右边距
+  > .n-scrollbar {
+    height: 100%;
+  }
+
+  .next-queue-item,
+  .next-queue-list .song-node {
+    padding: 8px 16px;
   }
 
   .queue-empty {
     display: block;
-    padding: 8px 4px 10px;
+    padding: 8px 16px 10px;
     font-size: 12px;
   }
-}
 
-.current-playlist-section {
-  display: grid;
-  flex: 1;
-  grid-template-rows: auto minmax(0, 1fr);
-  min-height: 0;
-
-  > .section-header {
-    padding: 4px 16px 0;
+  // 当前播放列表标题吸顶于滚动区顶部（吸附区下沿）
+  .playlist-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0 16px;
+    padding: 8px 0;
+    //background-color: var(--n-color);
+    flex-direction: row;
   }
 
-  .section-empty {
-    align-self: center;
+  .current-playlist-section {
+    min-height: 0;
+
+    .section-empty {
+      margin-top: 40px;
+    }
   }
 }
 
 .playlist-list,
-.next-queue-list {
+.next-queue-list,
+.next-queue-item {
   .song-node {
     position: relative;
     padding: 8px 0;
@@ -654,7 +917,7 @@ const {
 
 .playlist-list {
   min-height: 0;
-  padding: 0 16px 16px;
+  padding: 0 16px;
 
   &.is-dragging-global {
     cursor: grabbing;
@@ -748,6 +1011,11 @@ const {
       height: auto;
     }
   }
+  .playlist-body-scroller {
+    .n-scrollbar-content {
+      height: auto;
+    }
+  }
   .n-drawer-footer {
     height: 72px;
     padding: 16px;
@@ -772,8 +1040,21 @@ const {
       --n-color-pressed: var(--n-color);
       --n-color-focus: var(--n-color-hover);
     }
+    // 固定吸附区：列表已分离到下方，毛玻璃只采样封面背景，遮挡且不发白
+    .sticky-zone {
+      //background: linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15)),
+      //  rgba(var(--main-cover-color), 0.6);
+      //backdrop-filter: blur(14px) saturate(1.3);
+    }
+    // 列表标题：不透明深色封面底遮挡滚过的队列。不用 blur——其背面正是列表
+    // 内容，backdrop-filter 会采样它们导致泛白
+    .playlist-scroll .playlist-header {
+      //background: linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.35)),
+      //  rgb(var(--main-cover-color));
+    }
     .playlist-list,
-    .next-queue-list {
+    .next-queue-list,
+    .next-queue-item {
       .song-node {
         .drop-line {
           background-color: rgb(var(--main-cover-color));

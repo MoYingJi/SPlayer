@@ -1,5 +1,10 @@
 <template>
-  <div ref="wrapperRef" class="virtual-scroll-wrapper" :style="{ height: containerHeightStyle }">
+  <div
+    ref="wrapperRef"
+    class="virtual-scroll-wrapper"
+    :class="{ 'external-scroll-fixed': externalScroll }"
+    :style="{ height: containerHeightStyle }"
+  >
     <n-scrollbar
       ref="scrollbarRef"
       class="custom-virtual-list"
@@ -62,12 +67,21 @@ interface Props {
   defaultScrollIndex?: number;
   /** 获取唯一键的函数 */
   getItemKey?: (item: any, index: number) => string | number;
+  /** 外部滚动模式：自身不独立滚动，由外层滚动容器驱动渲染视口 */
+  externalScroll?: boolean;
+  /** 外部滚动位置读取器（externalScroll 时生效，返回列表内部滚动位置） */
+  getExternalScrollTop?: () => number;
+  /** 外部滚动执行器（externalScroll 时生效，滚动到列表内部位置） */
+  scrollExternalTo?: (top: number, behavior?: ScrollBehavior) => void;
+  /** 外部滚动可视区矩形（externalScroll 时生效，供拖拽定位） */
+  getExternalScrollRect?: () => DOMRect | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   itemFixed: false,
   bufferSize: 5,
   paddingBottom: 0,
+  externalScroll: false,
   getItemKey: (item: any, index: number) => {
     return item?.key ?? item?.id ?? index;
   },
@@ -103,6 +117,10 @@ const actualEndIndex = ref(0);
 
 // 容器高度样式
 const containerHeightStyle = computed(() => {
+  if (props.externalScroll) {
+    // 外部滚动模式：高度由内容占位撑起，参与外层滚动
+    return `${totalHeight.value}px`;
+  }
   return typeof props.height === "number" ? `${props.height}px` : props.height;
 });
 
@@ -360,15 +378,36 @@ const scrollToIndex = (index: number, behavior: ScrollBehavior = "auto") => {
 
 // 滚动到指定位置
 const scrollToPosition = (top: number, behavior: ScrollBehavior = "auto") => {
+  if (props.externalScroll) {
+    props.scrollExternalTo?.(top, behavior);
+    return;
+  }
   scrollbarRef.value?.scrollTo({
     top,
     behavior,
   });
 };
 
-// 获取当前滚动位置
+// 获取当前滚动位置（外部滚动模式下返回列表内部位置）
 const getScrollTop = () => {
+  if (props.externalScroll) {
+    return props.getExternalScrollTop?.() ?? scrollTop.value;
+  }
   return scrollTop.value;
+};
+
+// 外部滚动模式下由外层容器驱动渲染视口
+const setExternalScrollTop = (top: number) => {
+  scrollTop.value = top;
+  calculateVisibleRange(top);
+};
+
+// 获取拖拽定位所需的可视区矩形
+const getScrollViewRect = (): DOMRect | null => {
+  if (props.externalScroll) {
+    return props.getExternalScrollRect?.() ?? wrapperRef.value?.getBoundingClientRect() ?? null;
+  }
+  return wrapperRef.value?.getBoundingClientRect() ?? null;
 };
 
 const getItemTop = (index: number) => {
@@ -388,6 +427,8 @@ defineExpose({
   getDropInfoByOffset,
   contentRef,
   actualStartIndex,
+  setExternalScrollTop,
+  getScrollViewRect,
 });
 
 // 防抖高度测量
@@ -398,7 +439,7 @@ watch(
   () => props.items,
   () => {
     initializeHeights();
-    calculateVisibleRange(scrollTop.value);
+    calculateVisibleRange(getScrollTop());
     // 重新测量高度
     nextTick(debouncedMeasure);
   },
@@ -410,13 +451,13 @@ watch(
   () => props.items.length,
   () => {
     initializeHeights();
-    calculateVisibleRange(scrollTop.value);
+    calculateVisibleRange(getScrollTop());
   },
 );
 
 // 监听视口高度变化
 watch(viewportHeight, () => {
-  calculateVisibleRange(scrollTop.value);
+  calculateVisibleRange(getScrollTop());
 });
 
 // 监听可见区域变化，仅在非定高模式下触发测量
@@ -434,7 +475,8 @@ onMounted(() => {
   initializeHeights();
   // 等待 DOM 渲染和容器尺寸确定
   nextTick(() => {
-    calculateVisibleRange(0);
+    const initScrollTop = props.externalScroll ? getScrollTop() : 0;
+    calculateVisibleRange(initScrollTop);
     if (props.defaultScrollIndex) {
       scrollToIndex(props.defaultScrollIndex);
     }
@@ -463,5 +505,18 @@ onUnmounted(() => {
 }
 .virtual-item {
   contain: layout paint;
+}
+</style>
+
+<style lang="scss">
+/* 外部滚动模式：禁用内部滚动并隐藏内部滚动条（需全局样式以覆盖 naive 内部 DOM） */
+.virtual-scroll-wrapper.external-scroll-fixed {
+  .n-scrollbar-container {
+    overflow: hidden;
+  }
+
+  .n-scrollbar-rail {
+    display: none;
+  }
 }
 </style>

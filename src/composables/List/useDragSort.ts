@@ -54,6 +54,12 @@ export const useDragSort = (options: DragSortOptions) => {
     return { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
   };
 
+  // 刷新拖拽定位所需的可视区矩形
+  const updateListRect = () => {
+    const rect = virtualScrollRef.value?.getScrollViewRect?.() ?? null;
+    if (rect) listRect = rect;
+  };
+
   const activateDrag = (e: MouseEvent | TouchEvent, index: number, labelText: string) => {
     if (e.cancelable) {
       e.preventDefault();
@@ -64,10 +70,7 @@ export const useDragSort = (options: DragSortOptions) => {
     targetIndex.value = index;
     dragLabelData.value = { name: labelText };
 
-    const wrapper = virtualScrollRef.value?.wrapperRef;
-    if (wrapper) {
-      listRect = wrapper.getBoundingClientRect();
-    }
+    updateListRect();
 
     updateDragLabelPosition(e);
 
@@ -84,10 +87,7 @@ export const useDragSort = (options: DragSortOptions) => {
     updateDragLabelPosition(e);
 
     // 每次移动时刷新 listRect，避免因布局变化导致位置偏差
-    const wrapper = virtualScrollRef.value?.wrapperRef;
-    if (wrapper) {
-      listRect = wrapper.getBoundingClientRect();
-    }
+    updateListRect();
 
     if (!listRect) return;
     const { y: clientY } = getPointerPos(e);
@@ -197,10 +197,7 @@ export const useDragSort = (options: DragSortOptions) => {
       virtualScrollRef.value?.scrollTo(expectedScroll, "auto");
 
       // 刷新 listRect 并使用实际的滚动位置计算目标索引
-      const wrapper = virtualScrollRef.value?.wrapperRef;
-      if (wrapper) {
-        listRect = wrapper.getBoundingClientRect();
-      }
+      updateListRect();
       calculateTargetIndex(dragLabelPosition.top, expectedScroll);
 
       autoScrollRafId = requestAnimationFrame(scrollStep);
