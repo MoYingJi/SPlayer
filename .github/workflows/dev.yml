@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - legacy-continue
+      - legacy-continue-preview
     paths:
       - "src/**"
       - "web/**"
