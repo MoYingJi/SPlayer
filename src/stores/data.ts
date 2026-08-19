@@ -216,6 +216,22 @@ export const useDataStore = defineStore("data", {
       }
     },
     /**
+     * 追加歌曲到播放列表末尾（去重）
+     * @param songs 待追加的歌曲
+     * @returns 新增的歌曲数量
+     */
+    async appendPlayList(songs: SongType[]): Promise<number> {
+      if (!songs.length) return 0;
+      const currentList = toRaw(this.playList);
+      const existIds = new Set(currentList.map((s) => s.id));
+      const newSongs = songs.filter((s) => !existIds.has(s.id));
+      if (!newSongs.length) return 0;
+      const newList = [...currentList, ...newSongs];
+      this.playList = markRaw(newList);
+      await musicDB.setItem("playList", cloneDeep(toRaw(newList)));
+      return newSongs.length;
+    },
+    /**
      * 设置原始播放列表
      * @param data 原始播放列表
      */

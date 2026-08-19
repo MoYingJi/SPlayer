@@ -220,6 +220,23 @@ const moreOptions = computed<DropdownOption[]>(() => [
     icon: renderIcon("Delete"),
   },
   {
+    label: "加入播放列表",
+    key: "playlist-add",
+    props: {
+      onClick: () => {
+        if (!displayData.value?.length) return;
+        dataStore.appendPlayList(displayData.value).then((count) => {
+          if (count > 0) {
+            window.$message.success(`已将 ${count} 首歌曲加入播放列表`);
+          } else {
+            window.$message.info("歌单歌曲均已加入播放列表");
+          }
+        });
+      },
+    },
+    icon: renderIcon("PlaylistAdd"),
+  },
+  {
     label: "批量操作",
     key: "batch",
     props: {

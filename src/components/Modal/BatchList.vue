@@ -88,6 +88,32 @@
           </template>
           添加到歌单
         </n-button>
+        <!-- 加入播放列表 -->
+        <n-button
+          :disabled="!checkCount"
+          type="primary"
+          strong
+          secondary
+          @click="handleAddToPlayList"
+        >
+          <template #icon>
+            <SvgIcon name="PlaylistAdd" />
+          </template>
+          加入播放列表
+        </n-button>
+        <!-- 导出 CSV -->
+        <n-button
+          :disabled="!checkCount"
+          type="primary"
+          strong
+          secondary
+          @click="handleExportCsv"
+        >
+          <template #icon>
+            <SvgIcon name="FormatList" />
+          </template>
+          导出 CSV
+        </n-button>
         <!-- 删除本地歌曲 -->
         <n-button
           v-if="props.isLocal"
@@ -113,11 +139,13 @@ import { isMetaData, isMetaDataArray, type SongType } from "@/types/main";
 import { openPlaylistAdd } from "@/utils/modal";
 import { deleteSongs } from "@/utils/auth";
 import { NInput, NInputNumber, NButton, NText, NFlex } from "naive-ui";
-import { useLocalStore, useStatusStore } from "@/stores";
+import { useLocalStore, useStatusStore, useDataStore } from "@/stores";
 import { openDownloadSongs } from "@/utils/modal";
+import { exportSongsToCsv } from "@/utils/exportCsv";
 
 const localStore = useLocalStore();
 const statusStore = useStatusStore();
+const dataStore = useDataStore();
 
 interface DataType {
   key?: number;
@@ -310,6 +338,30 @@ const handleBatchDownloadClick = () => {
     return;
   }
   openDownloadSongs(checkSongData.value);
+};
+
+// 加入播放列表
+const handleAddToPlayList = async () => {
+  if (checkSongData.value.length === 0) {
+    window.$message.warning("请选择要加入的歌曲");
+    return;
+  }
+  const count = await dataStore.appendPlayList(checkSongData.value);
+  if (count > 0) {
+    window.$message.success(`已将 ${count} 首歌曲加入播放列表`);
+  } else {
+    window.$message.info("所选歌曲已在播放列表中");
+  }
+};
+
+// 导出 CSV
+const handleExportCsv = () => {
+  if (checkSongData.value.length === 0) {
+    window.$message.warning("请选择要导出的歌曲");
+    return;
+  }
+  exportSongsToCsv(checkSongData.value);
+  window.$message.success("导出成功");
 };
 </script>
 
