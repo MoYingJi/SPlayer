@@ -25,6 +25,7 @@ export default [
       "**/docs",
       "**/auto-imports.d.ts",
       "**/components.d.ts",
+      "**/resources/**",
       "native/**/index.d.ts",
     ],
   },

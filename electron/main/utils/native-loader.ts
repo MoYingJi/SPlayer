@@ -2,7 +2,7 @@ import { app } from "electron";
 import { createRequire } from "module";
 import path from "path";
 import { processLog } from "../logger";
-import fs from "node:fs";
+import { resolveResourcesPath } from "./file-loader";
 
 const requireNative = createRequire(import.meta.url);
 
@@ -11,22 +11,12 @@ export function resolveNativeModulePath(fileName: string, devDirName: string) {
     return path.join(app.getAppPath(), "native", devDirName, fileName);
   }
 
-  const customNativeModulePath = process.env.SPLAYER_NATIVE_MODULE_PATH;
-  if (customNativeModulePath) {
-    return path.join(customNativeModulePath, fileName);
-  }
+  const nativeModulePath = resolveResourcesPath("native", fileName);
 
-  const defaultPath = path.join(process.resourcesPath, "native", fileName);
-  if (fs.existsSync(defaultPath)) {
-    return defaultPath;
+  if (!nativeModulePath) {
+    throw new Error(`[NativeLoader] 无法找到 ${fileName}，请确保已正确打包原生插件。`);
   }
-
-  const fallbackPath = path.join(path.dirname(app.getAppPath()), "native", fileName);
-  if (fs.existsSync(fallbackPath)) {
-    return fallbackPath;
-  }
-
-  throw new Error(`[NativeLoader] 无法找到 ${fileName}，请确保已正确打包原生插件。`);
+  return nativeModulePath;
 }
 
 /**

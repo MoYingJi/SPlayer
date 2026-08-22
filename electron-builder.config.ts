@@ -77,6 +77,16 @@ const config: Configuration = {
       to: "native",
       filter: ["*.node"],
     },
+    {
+      from: "native/audio-capture",
+      to: "native",
+      filter: ["*.node"],
+    },
+    {
+      from: "resources/afp",
+      to: "afp",
+      filter: ["afp.mjs", "afp.wasm.mjs"],
+    },
   ],
   win: {
     // 可执行文件名

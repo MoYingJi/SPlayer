@@ -74,7 +74,7 @@ export const useKeyboardSettings = (): SettingConfig => {
         title: "全局快捷键更改",
         items: createShortcutItems(globalShortcutKeys, true),
       },
-{
+      {
         title: "系统快捷键设置",
         show: isPortalMode,
         items: [

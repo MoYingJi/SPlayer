@@ -17,6 +17,7 @@ depends=(
     'openssl'
     'dbus'
     'fontconfig'
+    'libpulse'
 )
 optdepends=(
     'mpv: for mpv playback engine support'

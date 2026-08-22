@@ -1,5 +1,6 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
 import type { StoreType } from "../main/store";
+import type { RecognitionEvent } from "../../src/types/shared/recognition";
 
 declare global {
   interface Window {
@@ -20,6 +21,16 @@ declare global {
           arch: string;
           release: string;
         };
+      };
+      recognition: {
+        isSupported: () => Promise<boolean>;
+        start: (config: {
+          source: "system" | "microphone";
+          durationMs: number;
+        }) => Promise<unknown>;
+        cancel: () => Promise<unknown>;
+        submitPcm: (pcm: Float32Array) => Promise<unknown>;
+        onEvent: (callback: (event: RecognitionEvent) => void) => () => void;
       };
     };
     // logs

@@ -128,8 +128,7 @@ export class LocalMusicDB {
   public getAnalysis(path: string): { data: string; mtime: number; size: number } | undefined {
     if (!this.db) return undefined;
     return this.db.prepare("SELECT * FROM audio_analysis WHERE path = ?").get(path) as
-      | { data: string; mtime: number; size: number }
-      | undefined;
+      { data: string; mtime: number; size: number } | undefined;
   }
 
   /** 保存音频分析结果 */
@@ -224,8 +223,7 @@ export class LocalMusicDB {
   public getTrack(path: string): MusicTrack | undefined {
     if (!this.db) return undefined;
     return this.db.prepare("SELECT * FROM tracks WHERE path = ?").get(path) as
-      | MusicTrack
-      | undefined;
+      MusicTrack | undefined;
   }
 
   /** 批量添加/更新歌曲 */

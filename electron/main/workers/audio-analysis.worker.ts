@@ -30,10 +30,7 @@ type SuggestLongMixRequest = {
 };
 
 type WorkerRequest =
-  | AnalyzeRequest
-  | AnalyzeHeadRequest
-  | SuggestTransitionRequest
-  | SuggestLongMixRequest;
+  AnalyzeRequest | AnalyzeHeadRequest | SuggestTransitionRequest | SuggestLongMixRequest;
 
 type AnalyzeResponse = { ok: true; result: unknown } | { ok: false; error: string };
 

@@ -311,10 +311,10 @@ export const useDataStore = defineStore("data", {
           console.warn("History data corrupted, resetting...");
           try {
             await musicDB.removeItem("historyList"); // 清除损坏的记录
-            await saveHistory([song]);               // 重新从当前歌曲开始
+            await saveHistory([song]); // 重新从当前歌曲开始
           } catch (retryError) {
             console.error("Failed to recover history:", retryError);
-            this.historyList = markRaw([song]);     // 至少内存中保留当前歌曲
+            this.historyList = markRaw([song]); // 至少内存中保留当前歌曲
           }
         } else {
           console.error("Error updating history:", error);

@@ -19,6 +19,20 @@
         <SvgIcon :size="18" name="Search" />
       </template>
     </n-input>
+    <!-- 听歌识曲 -->
+    <n-button
+      :focusable="false"
+      tertiary
+      circle
+      class="recognize-btn"
+      title="听歌识曲"
+      @click="recognitionOpen = true"
+    >
+      <template #icon>
+        <SvgIcon name="AudioWaveform" :size="18" />
+      </template>
+    </n-button>
+    <RecognitionDialog v-model:show="recognitionOpen" />
     <!-- 搜索框遮罩 -->
     <Transition name="fade" mode="out-in">
       <div v-show="statusStore.searchFocus" class="search-mask" @click.stop="closeSearchFocus" />
@@ -39,6 +53,7 @@ import { usePlayerController } from "@/core/player/PlayerController";
 import { songDetail } from "@/api/song";
 import { formatSongsList } from "@/utils/format";
 import SearchInpMenu from "@/components/Menu/SearchInpMenu.vue";
+import RecognitionDialog from "@/components/Modal/RecognitionDialog.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -46,6 +61,9 @@ const dataStore = useDataStore();
 const statusStore = useStatusStore();
 const settingStore = useSettingStore();
 const player = usePlayerController();
+
+// 听歌识曲
+const recognitionOpen = ref(false);
 
 // 右键菜单
 const searchInpMenuRef = ref<InstanceType<typeof SearchInpMenu> | null>(null);
@@ -237,6 +255,14 @@ onMounted(() => {
       height: 100%;
       width: 100%;
     }
+  }
+  .recognize-btn {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    width: 32px;
+    height: 32px;
+    z-index: 102;
   }
   &.focus {
     .search-input {

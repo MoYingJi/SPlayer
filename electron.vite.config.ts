@@ -36,6 +36,7 @@ const commonResolve = {
     "@opencc": resolve(__dirname, "native/ferrous-opencc-wasm/pkg"),
     "@native": resolve(__dirname, "native"),
     "@windows": resolve(__dirname, "windows"),
+    "@splayer/audio-capture": resolve(__dirname, "native/audio-capture"),
   },
 };
 
@@ -59,6 +60,10 @@ export default defineConfig(({ mode }) => {
             "workers/audio-analysis.worker": resolve(
               __dirname,
               "electron/main/workers/audio-analysis.worker.ts",
+            ),
+            "workers/recognition.worker": resolve(
+              __dirname,
+              "electron/main/workers/recognition.worker.ts",
             ),
           },
         },

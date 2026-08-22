@@ -5,6 +5,7 @@ members = [
   "native/linux-portal",
   "native/taskbar-lyric",
   "native/tools",
+  "native/audio-capture",
 ]
 
 resolver = "3"

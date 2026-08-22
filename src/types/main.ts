@@ -334,14 +334,7 @@ export type SongLevelDataType = {
 
 // setting
 export type SettingType =
-  | "general"
-  | "appearance"
-  | "play"
-  | "lyrics"
-  | "keyboard"
-  | "local"
-  | "network"
-  | "about";
+  "general" | "appearance" | "play" | "lyrics" | "keyboard" | "local" | "network" | "about";
 
 // 登录方式
 export type LoginType = "qr" | "phone" | "cookie" | "uid";

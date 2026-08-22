@@ -123,8 +123,8 @@
             </template>
             隐藏到托盘
           </n-button>
-          </n-flex>
-        </template>
+        </n-flex>
+      </template>
     </n-modal>
   </n-layout-header>
 </template>

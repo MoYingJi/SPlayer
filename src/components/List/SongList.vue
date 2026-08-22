@@ -405,8 +405,7 @@ const listData = computed<SongType[]>(() => {
 
 // 虚拟列表项类型
 type VirtualListItem =
-  | { type: "song"; data: SongType; key: number }
-  | { type: "footer"; data: null; key: string };
+  { type: "song"; data: SongType; key: number } | { type: "footer"; data: null; key: string };
 
 // 虚拟列表数据（包含歌曲和 footer）
 const virtualListItems = computed<VirtualListItem[]>(() => {

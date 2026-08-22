@@ -7,6 +7,7 @@ import initMediaIpc from "./ipc-media";
 import initMpvIpc from "./ipc-mpv";
 import initProtocolIpc from "./ipc-protocol";
 import initRendererLogIpc from "./ipc-renderer-log";
+import { initRecognitionIpc } from "./ipc-recognition";
 import initShortcutIpc from "./ipc-shortcut";
 import initSocketIpc from "./ipc-socket";
 import initStoreIpc from "./ipc-store";
@@ -35,6 +36,7 @@ const initIpc = (): void => {
   initMediaIpc();
   initMpvIpc();
   initRendererLogIpc();
+  initRecognitionIpc();
   if (isMac) {
     initMacStatusBarIpc();
   } else {

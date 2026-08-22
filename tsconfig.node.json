@@ -21,7 +21,8 @@
     "paths": {
       "@emi": ["./native/external-media-integration"],
       "@native/*": ["./native/*"],
-      "@shared": ["./src/types/shared"]
+      "@shared": ["./src/types/shared"],
+      "@splayer/audio-capture": ["./native/audio-capture"]
     }
   }
 }

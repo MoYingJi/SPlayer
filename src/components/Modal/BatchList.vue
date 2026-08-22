@@ -102,13 +102,7 @@
           加入播放列表
         </n-button>
         <!-- 导出 CSV -->
-        <n-button
-          :disabled="!checkCount"
-          type="primary"
-          strong
-          secondary
-          @click="handleExportCsv"
-        >
+        <n-button :disabled="!checkCount" type="primary" strong secondary @click="handleExportCsv">
           <template #icon>
             <SvgIcon name="FormatList" />
           </template>

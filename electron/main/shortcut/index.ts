@@ -268,9 +268,9 @@ export const disposeShortcuts = (): void => {
  *
  * 供 IPC 打开系统快捷键配置界面使用
  */
-export const getPortalManager = async (): Promise<
-  InstanceType<PortalModule["GlobalShortcuts"]> | null
-> => {
+export const getPortalManager = async (): Promise<InstanceType<
+  PortalModule["GlobalShortcuts"]
+> | null> => {
   const b = await getBackendAsync();
   if (b instanceof PortalBackend) {
     return b.getManager();

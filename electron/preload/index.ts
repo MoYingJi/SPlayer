@@ -26,6 +26,20 @@ if (process.contextIsolated) {
           release: os.release(),
         },
       },
+      recognition: {
+        isSupported: () => ipcRenderer.invoke("recognition:isSupported"),
+        start: (config: { source: "system" | "microphone"; durationMs: number }) =>
+          ipcRenderer.invoke("recognition:start", config),
+        cancel: () => ipcRenderer.invoke("recognition:cancel"),
+        submitPcm: (pcm: Float32Array) => ipcRenderer.invoke("recognition:submitPcm", pcm),
+        onEvent: (callback: (event: unknown) => void) => {
+          const handler = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data);
+          ipcRenderer.on("recognition:event", handler);
+          return () => {
+            ipcRenderer.removeListener("recognition:event", handler);
+          };
+        },
+      },
     });
     // Expose logger API via preload
     contextBridge.exposeInMainWorld("logger", {
