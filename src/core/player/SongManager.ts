@@ -295,7 +295,7 @@ class SongManager {
     }
 
     // 获取音源列表
-    let servers: SongUnlockServer[] = [];
+    let servers: SongUnlockServer[];
     if (specificSource && specificSource !== "auto") {
       servers = [specificSource as SongUnlockServer];
     } else {

@@ -922,7 +922,7 @@ export class AutomixManager {
     const isHighEnergy = outroEnergy > -12.0;
 
     const beatsToWait = isHighEnergy ? 8 : 1;
-    let newTrigger = currentTrigger;
+    let newTrigger: number;
 
     if (analysis.bpm && analysis.first_beat_pos !== undefined) {
       const spb = 60 / analysis.bpm;

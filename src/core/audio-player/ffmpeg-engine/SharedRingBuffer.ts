@@ -49,7 +49,7 @@ export class SharedRingBuffer {
       const readPos = Atomics.load(this.header, IDX_READ);
 
       // 计算可用空间
-      let available = 0;
+      let available: number;
       if (writePos >= readPos) {
         //  保留 1 字节 gap
         available = this.capacity - writePos + readPos - 1;
@@ -129,7 +129,7 @@ export class SharedRingBuffer {
         continue;
       }
 
-      let available = 0;
+      let available: number;
       if (writePos > readPos) {
         available = writePos - readPos;
       } else {

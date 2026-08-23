@@ -1,21 +1,10 @@
-import { FlatCompat } from "@eslint/eslintrc";
 import js from "@eslint/js";
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
+import tseslint from "typescript-eslint";
 import vue from "eslint-plugin-vue";
 import globals from "globals";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import autoEslint from "./auto-eslint.mjs";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
-  allConfig: js.configs.all,
-});
-
-export default [
+export default tseslint.config(
   {
     ignores: [
       "**/node_modules",
@@ -29,10 +18,10 @@ export default [
       "native/**/index.d.ts",
     ],
   },
-  ...compat.extends("eslint:recommended", "plugin:@typescript-eslint/recommended"),
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
     plugins: {
-      "@typescript-eslint": typescriptEslint,
       vue,
     },
 
@@ -47,7 +36,7 @@ export default [
       sourceType: "module",
 
       parserOptions: {
-        parser: "@typescript-eslint/parser",
+        parser: tseslint.parser,
       },
     },
 
@@ -68,7 +57,7 @@ export default [
 
     languageOptions: {
       globals: { ...globals.node },
-      ecmaVersion: 5,
+      ecmaVersion: 2020,
       sourceType: "commonjs",
     },
 
@@ -76,13 +65,4 @@ export default [
       "@typescript-eslint/no-require-imports": "off",
     },
   },
-  {
-    files: ["**/.eslintrc.{js,cjs}"],
-
-    languageOptions: {
-      globals: { ...globals.node },
-      ecmaVersion: 5,
-      sourceType: "commonjs",
-    },
-  },
-];
+);

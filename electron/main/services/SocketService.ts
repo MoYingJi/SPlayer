@@ -416,8 +416,8 @@ export class SocketService {
     }
 
     // 根据命令发送相应的 IPC 事件到渲染进程
-    let ipcEvent: string | null = null;
-    let commandName: string = "";
+    let ipcEvent: string;
+    let commandName: string;
 
     switch (command) {
       case "toggle":

@@ -372,7 +372,7 @@ export abstract class BaseAudioPlayer
 
       for (let i = 0; i < steps; i++) {
         const t = i / (steps - 1);
-        let val = 0;
+        let val: number;
 
         if (targetValue > currentValue) {
           const factor = Math.sin((t * Math.PI) / 2);
