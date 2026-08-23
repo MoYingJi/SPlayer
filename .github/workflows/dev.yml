@@ -20,41 +20,164 @@ on:
       - "Dockerfile"
       - "docker-compose.yml"
   workflow_dispatch:
+    inputs:
+      windows-x64:
+        description: "构建 Windows x64"
+        required: false
+        type: boolean
+        default: true
+      windows-arm64:
+        description: "构建 Windows arm64"
+        required: false
+        type: boolean
+        default: false
+      macos-x64:
+        description: "构建 macOS x64"
+        required: false
+        type: boolean
+        default: false
+      macos-arm64:
+        description: "构建 macOS arm64"
+        required: false
+        type: boolean
+        default: false
+      linux-x64:
+        description: "构建 Linux x64"
+        required: false
+        type: boolean
+        default: false
+      linux-arm64:
+        description: "构建 Linux arm64"
+        required: false
+        type: boolean
+        default: false
+      line:
+        description: " ====== 分割线 ====== "
+        required: false
+        type: boolean
+        default: false
+      win-nsis:
+        description: "Windows: NSIS 安装版"
+        required: false
+        type: boolean
+        default: true
+      win-portable:
+        description: "Windows: Portable 便携版"
+        required: false
+        type: boolean
+        default: false
+      mac-dmg:
+        description: "macOS: DMG 安装版"
+        required: false
+        type: boolean
+        default: true
+      mac-zip:
+        description: "macOS: ZIP 压缩包"
+        required: false
+        type: boolean
+        default: false
+      linux-appimage:
+        description: "Linux: AppImage"
+        required: false
+        type: boolean
+        default: true
+      linux-deb:
+        description: "Linux: DEB 包"
+        required: false
+        type: boolean
+        default: false
+      linux-rpm:
+        description: "Linux: RPM 包"
+        required: false
+        type: boolean
+        default: false
+      linux-pacman:
+        description: "Linux: Pacman 包"
+        required: false
+        type: boolean
+        default: false
+      linux-tar:
+        description: "Linux: Tar.gz 压缩包"
+        required: false
+        type: boolean
+        default: false
 
 env:
   NODE_VERSION: 26.x
 
 jobs:
   # ===================================================================
+  #  根据触发方式决定构建平台
+  # ===================================================================
+  setup:
+    name: Setup Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set build matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            WIN_TARGETS=()
+            MAC_TARGETS=()
+            LINUX_TARGETS=()
+
+            [ "${{ github.event.inputs.win-nsis }}" ] && WIN_TARGETS+=("nsis")
+            [ "${{ github.event.inputs.win-portable }}" ] && WIN_TARGETS+=("portable")
+            [ "${{ github.event.inputs.mac-dmg }}" ] && MAC_TARGETS+=("dmg")
+            [ "${{ github.event.inputs.mac-zip }}" ] && MAC_TARGETS+=("zip")
+            [ "${{ github.event.inputs.linux-appimage }}" ] && LINUX_TARGETS+=("AppImage")
+            [ "${{ github.event.inputs.linux-deb }}" ] && LINUX_TARGETS+=("deb")
+            [ "${{ github.event.inputs.linux-rpm }}" ] && LINUX_TARGETS+=("rpm")
+            [ "${{ github.event.inputs.linux-pacman }}" ] && LINUX_TARGETS+=("pacman")
+            [ "${{ github.event.inputs.linux-tar }}" ] && LINUX_TARGETS+=("tar.gz")
+
+            MATRIX="{\"include\":["
+            FIRST=true
+            if [ "${{ github.event.inputs.windows-x64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"Windows x64","runner":"windows-latest","target":"windows-x64","targets":"'"${WIN_TARGETS[*]}"'"}'
+            fi
+            if [ "${{ github.event.inputs.windows-arm64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"Windows arm64","runner":"windows-11-arm","target":"windows-arm64","targets":"'"${WIN_TARGETS[*]}"'"}'
+            fi
+            if [ "${{ github.event.inputs.macos-x64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"macOS x64","runner":"macos-15-intel","target":"macos-x64","targets":"'"${MAC_TARGETS[*]}"'"}'
+            fi
+            if [ "${{ github.event.inputs.macos-arm64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"macOS arm64","runner":"macos-latest","target":"macos-arm64","targets":"'"${MAC_TARGETS[*]}"'"}'
+            fi
+            if [ "${{ github.event.inputs.linux-x64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"Linux x64","runner":"ubuntu-latest","target":"linux-x64","targets":"'"${LINUX_TARGETS[*]}"'"}'
+            fi
+            if [ "${{ github.event.inputs.linux-arm64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"Linux arm64","runner":"ubuntu-24.04-arm","target":"linux-arm64","targets":"'"${LINUX_TARGETS[*]}"'"}'
+            fi
+            MATRIX+="]}"
+
+          else
+            # Push 触发，只构建 Windows x64 nsis
+            MATRIX='{"include":[{"name":"Windows x64","runner":"windows-latest","target":"windows-x64","targets":"nsis"}]}'
+          fi
+
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  # ===================================================================
   #  并行构建所有平台和架构
   # ===================================================================
   build:
     name: Build on ${{ matrix.name }}
+    needs: setup
     runs-on: ${{ matrix.runner }}
     strategy:
-      # 矩阵策略
-      # 即使一个矩阵任务失败，其他任务也会继续运行
       fail-fast: false
-      matrix:
-        include:
-          - name: Windows x64
-            runner: windows-latest
-            target: windows-x64
-#          - name: Windows arm64
-#            runner: windows-11-arm
-#            target: windows-arm64
-#          - name: macOS x64
-#            runner: macos-15-intel
-#            target: macos-x64
-#          - name: macOS arm64
-#            runner: macos-latest
-#            target: macos-arm64
-#          - name: Linux x64
-#            runner: ubuntu-latest
-#            target: linux-x64
-#          - name: Linux arm64
-#            runner: ubuntu-24.04-arm
-#            target: linux-arm64
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     # 开始步骤
     steps:
       # 检出 Git 仓库
@@ -106,7 +229,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y rpm libarchive-tools libopenjp2-tools
+          sudo apt-get install --no-install-recommends -y rpm libarchive-tools libopenjp2-tools libpulse-dev
 
       # macOS 上安装 LLVM 以支持 Wasm 编译
       - name: Install LLVM on macOS
@@ -151,22 +274,22 @@ jobs:
         run: |
           case "${{ matrix.target }}" in
             windows-x64)
-              pnpm build:win -- --x64
+              pnpm build:pack --x64 --win ${{ matrix.targets }}
               ;;
             windows-arm64)
-              pnpm build:win -- --arm64
+              pnpm build:pack --arm64 --win ${{ matrix.targets }}
               ;;
             macos-x64)
-              pnpm build:mac -- --x64
+              pnpm build:pack --x64 --mac ${{ matrix.targets }}
               ;;
             macos-arm64)
-              pnpm build:mac -- --arm64
+              pnpm build:pack --arm64 --mac ${{ matrix.targets }}
               ;;
             linux-x64)
-              pnpm build:linux -- --x64
+              pnpm build:pack --x64 --linux ${{ matrix.targets }}
               ;;
             linux-arm64)
-              pnpm build:linux -- --arm64
+              pnpm build:pack --arm64 --linux ${{ matrix.targets }}
               ;;
             *)
               echo "Unsupported target: ${{ matrix.target }}"
@@ -179,107 +302,107 @@ jobs:
           name: Upload Artifacts - Windows Setup x64,
           if: matrix.target == 'windows-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Windows-setup-x64, path: dist/*-x64-setup.exe },
+          with: { name: SPlayer-Windows-setup-x64, path: dist/*-x64-setup.exe, if-no-files-found: ignore },
         }
       - {
           name: Upload Artifacts - Windows Setup arm64,
           if: matrix.target == 'windows-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Windows-setup-arm64, path: dist/*-arm64-setup.exe },
+          with: { if-no-files-found: ignore, name: SPlayer-Windows-setup-arm64, path: dist/*-arm64-setup.exe },
         }
       - {
           name: Upload Artifacts - Windows Portable x64,
           if: matrix.target == 'windows-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Windows-portable-x64, path: dist/*-x64-portable.exe },
+          with: { if-no-files-found: ignore, name: SPlayer-Windows-portable-x64, path: dist/*-x64-portable.exe },
         }
       - {
           name: Upload Artifacts - Windows Portable arm64,
           if: matrix.target == 'windows-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Windows-portable-arm64, path: dist/*-arm64-portable.exe },
+          with: { if-no-files-found: ignore, name: SPlayer-Windows-portable-arm64, path: dist/*-arm64-portable.exe },
         }
       - {
           name: Upload Artifacts - macOS DMG x64,
           if: matrix.target == 'macos-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-macOS-dmg-x64, path: dist/*-x64.dmg },
+          with: { if-no-files-found: ignore, name: SPlayer-macOS-dmg-x64, path: dist/*-x64.dmg },
         }
       - {
           name: Upload Artifacts - macOS DMG arm64,
           if: matrix.target == 'macos-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-macOS-dmg-arm64, path: dist/*-arm64.dmg },
+          with: { if-no-files-found: ignore, name: SPlayer-macOS-dmg-arm64, path: dist/*-arm64.dmg },
         }
       - {
           name: Upload Artifacts - macOS Zip x64,
           if: matrix.target == 'macos-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-macOS-zip-x64, path: dist/*-x64.zip },
+          with: { if-no-files-found: ignore, name: SPlayer-macOS-zip-x64, path: dist/*-x64.zip },
         }
       - {
           name: Upload Artifacts - macOS Zip arm64,
           if: matrix.target == 'macos-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-macOS-zip-arm64, path: dist/*-arm64.zip },
+          with: { if-no-files-found: ignore, name: SPlayer-macOS-zip-arm64, path: dist/*-arm64.zip },
         }
       - {
           name: Upload Artifacts - Linux AppImage x64,
           if: matrix.target == 'linux-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-appimage-x64, path: dist/*-x86_64.AppImage },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-appimage-x64, path: dist/*-x86_64.AppImage },
         }
       - {
           name: Upload Artifacts - Linux AppImage arm64,
           if: matrix.target == 'linux-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-appimage-arm64, path: dist/*-arm64.AppImage },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-appimage-arm64, path: dist/*-arm64.AppImage },
         }
       - {
           name: Upload Artifacts - Linux Pacman x64,
           if: matrix.target == 'linux-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-pacman-x64, path: dist/*-x64.pacman },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-pacman-x64, path: dist/*-x64.pacman },
         }
       - {
           name: Upload Artifacts - Linux Pacman arm64,
           if: matrix.target == 'linux-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-pacman-arm64, path: dist/*-aarch64.pacman },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-pacman-arm64, path: dist/*-aarch64.pacman },
         }
       - {
           name: Upload Artifacts - Linux DEB x64,
           if: matrix.target == 'linux-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-deb-x64, path: dist/*-amd64.deb },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-deb-x64, path: dist/*-amd64.deb },
         }
       - {
           name: Upload Artifacts - Linux DEB arm64,
           if: matrix.target == 'linux-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-deb-arm64, path: dist/*-arm64.deb },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-deb-arm64, path: dist/*-arm64.deb },
         }
       - {
           name: Upload Artifacts - Linux RPM x64,
           if: matrix.target == 'linux-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-rpm-x64, path: dist/*-x86_64.rpm },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-rpm-x64, path: dist/*-x86_64.rpm },
         }
       - {
           name: Upload Artifacts - Linux RPM arm64,
           if: matrix.target == 'linux-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-rpm-arm64, path: dist/*-aarch64.rpm },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-rpm-arm64, path: dist/*-aarch64.rpm },
         }
       - {
           name: Upload Artifacts - Linux Tar x64,
           if: matrix.target == 'linux-x64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-tar-x64, path: dist/*-x64.tar.gz },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-tar-x64, path: dist/*-x64.tar.gz },
         }
       - {
           name: Upload Artifacts - Linux Tar arm64,
           if: matrix.target == 'linux-arm64',
           uses: actions/upload-artifact@v7,
-          with: { name: SPlayer-Linux-tar-arm64, path: dist/*-arm64.tar.gz },
+          with: { if-no-files-found: ignore, name: SPlayer-Linux-tar-arm64, path: dist/*-arm64.tar.gz },
         }

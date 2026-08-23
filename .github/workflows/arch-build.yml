@@ -19,12 +19,56 @@ on:
       - "Dockerfile"
       - "docker-compose.yml"
   workflow_dispatch:
+    inputs:
+      x86_64:
+        description: "构建 x86_64 (archlinux)"
+        required: false
+        type: boolean
+        default: true
+      aarch64:
+        description: "构建 aarch64 (archlinuxarm)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  build:
+  setup:
+    name: Setup Matrix
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Set build matrix
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MATRIX="{\"include\":["
+            FIRST=true
+            if [ "${{ github.event.inputs.x86_64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"x86_64","runner":"ubuntu-latest","arch":"x86_64","image":"archlinux:base-devel","options":""}'
+            fi
+            if [ "${{ github.event.inputs.aarch64 }}" = "true" ]; then
+              if [ "$FIRST" = "true" ]; then FIRST=false; else MATRIX+=","; fi
+              MATRIX+='{"name":"aarch64","runner":"ubuntu-24.04-arm","arch":"aarch64","image":"menci/archlinuxarm:base-devel","options":"--cap-add SYS_ADMIN --security-opt seccomp=unconfined"}'
+            fi
+            MATRIX+="]}"
+          else
+            # Push 触发，只构建 x86_64
+            MATRIX='{"include":[{"name":"x86_64","runner":"ubuntu-latest","arch":"x86_64","image":"archlinux:base-devel","options":""}]}'
+          fi
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: setup
+    runs-on: ${{ matrix.runner }}
     container:
-      image: archlinux:base-devel
+      image: ${{ matrix.image }}
+      options: ${{ matrix.options }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -36,5 +80,5 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: SPlayer-Arch-Build
+          name: SPlayer-Arch-Build-${{ matrix.arch }}
           path: package/archlinux/*.pkg.tar.*

@@ -119,8 +119,7 @@ build() {
     export CARGO_HOME="${srcdir}/.cargo"
     export PATH="${CARGO_HOME}/bin:${PATH}"
     local electronDist="/usr/lib/electron${_electronversion}"
-    NODE_ENV=production     pnpm run build
-    NODE_ENV=production     pnpm -c exec "electron-builder --linux dir -c.electronDist=${electronDist} --config electron-builder.config.ts"
+    NODE_ENV=production     pnpm build:linux dir -c.electronDist="${electronDist}"
 }
 
 package() {

@@ -104,9 +104,9 @@ const config: Configuration = {
         target: "nsis",
       },
       // 打包版
-      // {
-      //   target: "portable",
-      // },
+      {
+        target: "portable",
+      },
     ],
     // 注册协议
     protocols: [
@@ -210,26 +210,21 @@ const config: Configuration = {
         target: "pacman",
       },
       // AppImage 格式
-      // {
-      //   target: "AppImage",
-      // },
+      {
+        target: "AppImage",
+      },
       // Debian 包管理器
-      // {
-      //   target: "deb",
-      // },
+      {
+        target: "deb",
+      },
       // RPM 包管理器
-      // {
-      //   target: "rpm",
-      // },
-      // Snap 包管理器（仅支持 x64 架构）
-      // {
-      //   target: "snap",
-      //   arch: ["x64"],
-      // },
+      {
+        target: "rpm",
+      },
       // 压缩包格式
-      // {
-      //   target: "tar.gz",
-      // },
+      {
+        target: "tar.gz",
+      },
     ],
     // 维护者信息
     maintainer: "imsyy.top",

@@ -10,7 +10,7 @@ chown -R builder:builder .
 
 sudo="sudo --set-home --user builder"
 
-pacman -Syu --noconfirm
+pacman -Syu --noconfirm --color=always git
 
 # 查找 /etc/makepkg.conf 并去除 debug 选项
 # https://github.com/Neboer/archlinuxus/blob/main/prepare-arch-env/prepare-makepkg.sh
@@ -30,8 +30,20 @@ pacman -Syu --noconfirm
     sed -i.bak "/^OPTIONS=/c$new_line" "$file"
 )
 
+PACKAGER=${PACKAGER:-"MoYingJi <moyingjiaw@outlook.com>"}
+
 echo ::endgroup::
 
-PACKAGER=${PACKAGER:-"MoYingJi <moyingjiaw@outlook.com>"}
+echo ::group:: Dependency Handling
+
+if [ "$(uname -m)" = "aarch64" ]; then
+    # archlinuxarm 没有 electron43 包，手动安装 AUR 的 electron43-bin
+    $sudo git clone https://aur.archlinux.org/electron43-bin.git electron43-bin
+    cd electron43-bin || { echo "Failed to enter directory"; exit 1; }
+    $sudo env PACKAGER="$PACKAGER" makepkg --syncdeps --install --noconfirm
+    cd - || { echo "Failed to return to previous directory"; exit 1; }
+fi
+
+echo ::endgroup::
 
 $sudo env PACKAGER="$PACKAGER" makepkg --syncdeps --noconfirm

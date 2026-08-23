@@ -21,3 +21,6 @@ trim_trailing_whitespace = true
 [*.rs]
 # Rust 代码惯例使用 4 个空格缩进
 indent_size = 4
+
+[*.sh]
+indent_size = 4
