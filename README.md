@@ -34,9 +34,11 @@
 
 - [查看私房菜的更改](https://github.com/MoYingJi/SPlayer/compare/SPlayer-Dev%3ASPlayer%3Adev...legacy-continue)
 - [通用构建](https://github.com/MoYingJi/SPlayer/actions/workflows/dev.yml)
-  - Windows x64
+  - Windows x64 NSIS (自动)
+  - 其它 (手动)
 - [Arch Linux 构建](https://github.com/MoYingJi/SPlayer/actions/workflows/arch-build.yml)
-  - Arch Linux x86_64
+  - Arch Linux x86_64 (自动)
+  - Arch Linux ARM aarch64 (手动)
 
 ## 说明
 
