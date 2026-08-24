@@ -7,38 +7,36 @@
 > - 体验优化：优化一些体验什么的！
 > - 默认设置：更改为我认为更好的！
 > - 包体优化：清理一些没用东西的同时不影响功能。为 Arch Linux 提供 system-wide electron 包
+> - 功能新增：加一些新功能，其中大部分是从 Next 移植过来的
 >
-> 本 fork 对上游的修改较少，属于保留原汁原味 <br/>
-> 在称呼时，如果需要与上游区分，可以将本 fork 称呼为 SPlayer Legacy Continue 或 SPlayer 传承版 <br/>
-> 我也不知道这个 fork 能活多久，等 SPlayer-Next 那边搞得差不多了我说不定就润了
+> 我也不知道这个 fork 能活多久，等到 [SPlayer-Next](https://github.com/SPlayer-Dev/SPlayer-Next) 功能完善，本 fork 也就结束了它的使命
+>
+> 本 fork 对上游的修改相对较少，属于保留原汁原味 <br/>
+> 在称呼时，可以将本 fork 称呼为 SPlayer Legacy Continue 或 SPlayer 传承版 <br/>
 >
 > 由于一些更改，原文档和 README 的内容可能已经失效，暂时放在那吧
 >
-> 仅构建 Windows x64 Setup 和 Arch Linux x86_64 (Use system-wide electron)，仅保证 Arch Linux + KDE Plasma Wayland 下的可用性
->
 > 由于本项目的依赖 [applemusic-like-lyrics](https://github.com/amll-dev/applemusic-like-lyrics) 将许可证明确为 AGPL-3.0-**only**，因此本项目也将许可证明确为 AGPL-3.0-**only**
 
-> [!CAUTION]
->
-> # 本项目进入维护模式
->
-> 项目已进入维护模式，后续仅进行必要的维护与重大问题修复，不再主动开发新功能
->
-> 新功能及后续版本请移步 [SPlayer-Next](https://github.com/SPlayer-Dev/SPlayer-Next)
+- [查看私房菜的更改](https://github.com/MoYingJi/SPlayer/compare/SPlayer-Dev%3ASPlayer%3Adev...legacy-continue)
+- [通用构建](https://github.com/MoYingJi/SPlayer/actions/workflows/dev.yml)
+  - **Windows x64 NSIS** `(自动)`
+  - 其它 `(手动)`
+- [Arch Linux 构建](https://github.com/MoYingJi/SPlayer/actions/workflows/arch-build.yml) (Use system-wide electron)
+  - **Arch Linux x86_64** `(自动)`
+  - Arch Linux ARM aarch64 `(手动)`
+
+`(自动)` 会在 push 实质性修改时自动构建；`(手动)` 需要手动触发
+
+需要其它包的，可以让我手动触发构建，也可以 fork 后自行在 Actions 触发
+
+---
 
 <div align="center">
 <img alt="logo" height="100" width="100" src="public/icons/favicon.png" />
 <h2> SPlayer · 传承 </h2>
 <p> 一个简约的音乐播放器 </p>
 </div>
-
-- [查看私房菜的更改](https://github.com/MoYingJi/SPlayer/compare/SPlayer-Dev%3ASPlayer%3Adev...legacy-continue)
-- [通用构建](https://github.com/MoYingJi/SPlayer/actions/workflows/dev.yml)
-  - Windows x64 NSIS (自动)
-  - 其它 (手动)
-- [Arch Linux 构建](https://github.com/MoYingJi/SPlayer/actions/workflows/arch-build.yml)
-  - Arch Linux x86_64 (自动)
-  - Arch Linux ARM aarch64 (手动)
 
 ## 说明
 
@@ -53,10 +51,7 @@
 > - 感谢您的尊重与理解
 
 - 本项目采用 [Vue 3](https://cn.vuejs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Naïve UI](https://www.naiveui.com/) + [Electron](https://www.electronjs.org/zh/docs/latest/) 开发
-- Node.js 版本要求：>= 20，包管理器：pnpm >= 10
 - 默认会构建原生模块，需准备 Rust 工具链；如仅需要网页端构建或暂时跳过，可设置环境变量 `SKIP_NATIVE_BUILD=true`
-
-- 欢迎各位大佬 `Star` 😍
 
 ## 🧑‍💻 开发
 
@@ -70,34 +65,6 @@
 ### 跳过原生模块构建
 
 默认会编译 `native/*` 下的原生模块（需要 Rust）。如果你的场景不需要原生能力，可设置 `SKIP_NATIVE_BUILD=true` 后再执行 `pnpm dev` / `pnpm build`。
-
-## 🎉 功能
-
-- ✨ 支持扫码登录
-- 📱 支持手机号登录
-- ~~📅 自动进行每日签到及云贝签到~~
-- 💻 支持桌面歌词
-- 💻 支持切换为本地播放器，此模式将不会连接网络
-- 🎨 封面主题色自适应，支持全站着色
-- 🌚 Light / Dark / Auto 模式自动切换
-- 📁 本地歌曲管理及分类（建议先使用 [音乐标签](https://www.cnblogs.com/vinlxc/p/11347744.html) 进行匹配后再使用）
-- 📁 本地音乐标签编辑及封面修改
-- ➕ 新建歌单及歌单编辑
-- ❤️ 收藏 / 取消收藏歌单或歌手
-- ☁️ 云盘音乐上传
-- 📂 云盘内歌曲播放
-- 🔄 云盘内歌曲纠正
-- 🗑️ 云盘歌曲删除
-- 🌐 支持 Subsonic / Navidrome 等流媒体服务（多服务器支持、自动连接）
-- 📝 支持逐字歌词
-- 🔄 歌词滚动以及歌词翻译
-- 📹 MV 与视频播放
-- 🎶 音乐频谱显示
-- ⏭️ 音乐渐入渐出
-- 🔄 支持 PWA
-- 💬 支持评论区
-- 🎵 支持 Last.fm Scrobble（播放记录上报）
-- 📱 移动端基础适配
 
 ## 😘 鸣谢
 
@@ -118,8 +85,8 @@
 欢迎加入我们 🥰! 一起为 SPlayer 贡献一份力量。
 感谢以下所有贡献者 💖
 
-<a href="https://github.com/imsyy/SPlayer/graphs/contributors" target="_blank" rel="noopener">
-  <img src="https://contrib.rocks/image?repo=imsyy/SPlayer&max=30&anon=1&v=1"
+<a href="https://github.com/MoYingJi/SPlayer/graphs/contributors?all=1" target="_blank" rel="noopener">
+  <img src="https://contrib.rocks/image?repo=MoYingJi/SPlayer&max=30&anon=1&v=1"
     alt="SPlayer 项目贡献者"
     width="650"
     loading="lazy"
