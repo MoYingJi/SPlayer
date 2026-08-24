@@ -232,14 +232,14 @@ jobs:
           sudo apt-get install --no-install-recommends -y rpm libarchive-tools libopenjp2-tools libpulse-dev
 
       # macOS 上安装 LLVM 以支持 Wasm 编译
-      - name: Install LLVM on macOS
-        if: runner.os == 'macOS'
-        run: brew install llvm
-      - name: Set Environment Variables on macOS
-        if: runner.os == 'macOS'
-        run: |
-          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
-          echo "AR=$(brew --prefix llvm)/bin/llvm-ar" >> $GITHUB_ENV
+#      - name: Install LLVM on macOS
+#        if: runner.os == 'macOS'
+#        run: brew install llvm
+#      - name: Set Environment Variables on macOS
+#        if: runner.os == 'macOS'
+#        run: |
+#          echo "CC=$(brew --prefix llvm)/bin/clang" >> $GITHUB_ENV
+#          echo "AR=$(brew --prefix llvm)/bin/llvm-ar" >> $GITHUB_ENV
 
       # 复制环境变量文件
       - name: Copy .env file on Windows
