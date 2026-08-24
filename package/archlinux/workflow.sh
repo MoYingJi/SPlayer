@@ -36,8 +36,8 @@ echo ::endgroup::
 
 echo ::group:: Dependency Handling
 
-if [ "$(uname -m)" = "aarch64" ]; then
-    # archlinuxarm 没有 electron43 包，手动安装 AUR 的 electron43-bin
+# archlinuxarm 没有 electron43 包，手动安装 AUR 的 electron43-bin
+if ! pacman -Si electron43 >/dev/null 2>&1; then
     $sudo git clone https://aur.archlinux.org/electron43-bin.git electron43-bin
     cd electron43-bin || { echo "Failed to enter directory"; exit 1; }
     $sudo env PACKAGER="$PACKAGER" makepkg --syncdeps --install --noconfirm
