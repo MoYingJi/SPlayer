@@ -8,3 +8,5 @@ native/**/index.d.ts
 # tsconfig.json
 # tsconfig.*.json
 auto-eslint.mjs
+
+.github/workflows/
