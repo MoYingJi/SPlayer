@@ -1,3 +1,4 @@
+import type { PersonalFmOptions } from "@/types/shared/play-mode";
 import { personalFm, personalFmToTrash } from "@/api/rec";
 import { songQuality, songUrl, unlockSongUrl } from "@/api/song";
 import { useLyricManager } from "@/core/player/LyricManager";
@@ -179,6 +180,7 @@ class SongManager {
   /**
    * 获取在线播放链接
    * @param id 歌曲id
+   * @param isPc
    * @returns 在线播放信息
    */
   public getOnlineUrl = async (id: number, isPc: boolean = false): Promise<AudioSource> => {
@@ -259,7 +261,7 @@ class SongManager {
 
   /**
    * 获取解锁播放链接
-   * @param songData 歌曲数据
+   * @param song 歌曲数据
    * @param specificSource 指定解锁源
    * @returns
    */
@@ -363,7 +365,7 @@ class SongManager {
         // 当前批次已是最后一首，提前拉取下一批追加到列表
         if (fmIndex >= fmList.length - 1) {
           try {
-            const res = await personalFm();
+            const res = await personalFm(this.getPersonalFmApiOptions());
             const newList = formatSongsList(res.data);
             if (newList?.length) {
               musicStore.personalFM.list = [...fmList, ...newList];
@@ -478,6 +480,7 @@ class SongManager {
    * 获取音频源
    * 始终从此方法获取对应歌曲播放信息
    * @param song 歌曲
+   * @param forceSource 强制指定音频源类型
    * @returns 音频源
    */
   public getAudioSource = async (song: SongType, forceSource?: string): Promise<AudioSource> => {
@@ -606,17 +609,38 @@ class SongManager {
   };
 
   /**
+   * 构建私人 FM API 请求参数
+   * @param options 可选的模式选项，不传则使用 store 中的当前配置
+   * @returns API 请求参数
+   */
+  private getPersonalFmApiOptions(options?: PersonalFmOptions): {
+    mode?: string;
+    submode?: string;
+  } {
+    const statusStore = useStatusStore();
+    const mode = options?.mode ?? statusStore.personalFmModeType;
+    const submode = options?.submode ?? statusStore.personalFmSubMode;
+    const apiOptions: { mode?: string; submode?: string } = {};
+    if (mode) apiOptions.mode = mode;
+    if (mode === "SCENE_RCMD" && submode) {
+      apiOptions.submode = submode;
+    }
+    return apiOptions;
+  }
+
+  /**
    * 初始化/播放私人 FM
    * @param playNext 是否播放下一首
+   * @param options FM 模式选项
    * @returns 是否成功
    */
-  public async initPersonalFM(playNext: boolean = false) {
+  public async initPersonalFM(playNext: boolean = false, options?: PersonalFmOptions) {
     const musicStore = useMusicStore();
     const statusStore = useStatusStore();
 
     try {
       const fetchFM = async () => {
-        const res = await personalFm();
+        const res = await personalFm(this.getPersonalFmApiOptions(options));
         musicStore.personalFM.list = formatSongsList(res.data);
         musicStore.personalFM.playIndex = 0;
       };
@@ -661,15 +685,16 @@ class SongManager {
 
   /**
    * 刷新私人 FM
+   * @param options FM 模式选项
    */
-  public async refreshPersonalFM() {
+  public async refreshPersonalFM(options?: PersonalFmOptions) {
     const musicStore = useMusicStore();
     if (!isLogin()) {
       window.$message.error("请先登录");
       return;
     }
     try {
-      const res = await personalFm();
+      const res = await personalFm(this.getPersonalFmApiOptions(options));
       const newList = formatSongsList(res.data);
       if (!newList || newList.length === 0) {
         throw new Error("加载私人漫游列表失败");

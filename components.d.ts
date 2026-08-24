@@ -36,6 +36,7 @@ declare module 'vue' {
     Equalizer: typeof import('./src/components/Modal/Equalizer.vue')['default']
     ExcludeComment: typeof import('./src/components/Modal/Setting/ExcludeComment.vue')['default']
     ExcludeLyrics: typeof import('./src/components/Modal/Setting/ExcludeLyrics.vue')['default']
+    FmModeDialog: typeof import('./src/components/Modal/FmModeDialog.vue')['default']
     FontManager: typeof import('./src/components/Modal/Setting/FontManager.vue')['default']
     FullPlayer: typeof import('./src/components/Player/FullPlayer.vue')['default']
     FullPlayerMobile: typeof import('./src/components/Player/FullPlayerMobile.vue')['default']

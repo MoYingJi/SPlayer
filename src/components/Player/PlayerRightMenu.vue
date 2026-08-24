@@ -80,9 +80,18 @@
         <n-text class="slider-num hidden">{{ statusStore.playVolumePercent }}%</n-text>
       </div>
     </n-popover>
+    <!-- 私人 FM 模式调整 -->
+    <div
+      v-if="statusStore.personalFmMode"
+      class="menu-icon hidden"
+      title="FM 模式与场景"
+      @click.stop="openFmMode()"
+    >
+      <SvgIcon name="Radio" />
+    </div>
     <!-- 播放列表 -->
     <n-badge
-      v-if="!statusStore.personalFmMode"
+      v-else
       :value="dataStore.playList?.length ?? 0"
       :show="settingStore.showPlaylistCount"
       :max="9999"
@@ -102,7 +111,13 @@ import { usePlayerController } from "@/core/player/PlayerController";
 import { useDataStore, useSettingStore, useStatusStore, useMusicStore } from "@/stores";
 import { isElectron } from "@/utils/env";
 import { renderIcon } from "@/utils/helper";
-import { openAutoClose, openChangeRate, openEqualizer, openABLoop } from "@/utils/modal";
+import {
+  openAutoClose,
+  openChangeRate,
+  openEqualizer,
+  openABLoop,
+  openFmMode,
+} from "@/utils/modal";
 import { useAudioManager } from "@/core/player/AudioManager";
 import type { DropdownOption } from "naive-ui";
 import { useQualityControl } from "@/composables/useQualityControl";

@@ -8,6 +8,7 @@ import type {
   SortOrder,
 } from "@/types/main";
 import type { RepeatModeType, ShuffleModeType } from "@/types/shared/play-mode";
+import type { PersonalFmMode, PersonalFmSubMode } from "@/types/shared/play-mode";
 import { isDevBuild } from "@/utils/env";
 import { defineStore } from "pinia";
 
@@ -99,6 +100,10 @@ interface StatusState {
   showPlayerComment: boolean;
   /** 私人FM模式 */
   personalFmMode: boolean;
+  /** 私人FM主模式 */
+  personalFmModeType: PersonalFmMode;
+  /** 私人FM场景子模式 */
+  personalFmSubMode: PersonalFmSubMode;
   /** 均衡器是否开启 */
   eqEnabled: boolean;
   /** 均衡器 10 段增益（dB） */
@@ -190,6 +195,8 @@ export const useStatusStore = defineStore("status", {
     repeatMode: "off",
     shuffleMode: "off",
     personalFmMode: false,
+    personalFmModeType: "DEFAULT",
+    personalFmSubMode: "EXERCISE",
     mainContentHeight: 0,
     listSortField: "default",
     listSortOrder: "default",
@@ -414,6 +421,8 @@ export const useStatusStore = defineStore("status", {
         playListShow: false,
         showFullPlayer: false,
         personalFmMode: false,
+        personalFmModeType: "DEFAULT",
+        personalFmSubMode: "EXERCISE",
         playIndex: -1,
         repeatMode: "off",
         shuffleMode: "off",
@@ -446,6 +455,8 @@ export const useStatusStore = defineStore("status", {
       "showDesktopLyric",
       "showTaskbarLyric",
       "personalFmMode",
+      "personalFmModeType",
+      "personalFmSubMode",
       "autoClose",
       "eqEnabled",
       "eqBands",

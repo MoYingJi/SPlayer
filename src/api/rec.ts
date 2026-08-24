@@ -98,12 +98,19 @@ export const newAlbumsAll = (
   });
 };
 
-// 私人 FM
-export const personalFm = () => {
+/**
+ * 私人 FM
+ * @param {object} [options] - FM 选项
+ * @param {string} [options.mode] - 推荐模式
+ * @param {string} [options.submode] - 场景子模式
+ * @param {number} [options.limit] - 获取数量
+ */
+export const personalFm = (options?: { mode?: string; submode?: string; limit?: number }) => {
   return request({
-    url: "/personal_fm",
+    url: "/personal/fm/mode",
     params: {
       timestamp: Date.now(),
+      ...options,
     },
   });
 };

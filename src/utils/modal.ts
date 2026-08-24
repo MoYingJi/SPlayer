@@ -414,6 +414,21 @@ export const openEqualizer = async () => {
   });
 };
 
+/** 打开私人 FM 模式选择弹窗 */
+export const openFmMode = async () => {
+  const { default: FmModeDialog } = await import("@/components/Modal/FmModeDialog.vue");
+  window.$modal.create({
+    preset: "card",
+    transformOrigin: "center",
+    autoFocus: false,
+    style: { width: "540px" },
+    title: "私人 FM 模式选择",
+    content: () => {
+      return h(FmModeDialog);
+    },
+  });
+};
+
 /**
  * 打开简介弹窗
  * @param content 简介内容
