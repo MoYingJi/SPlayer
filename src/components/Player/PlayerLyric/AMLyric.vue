@@ -29,7 +29,7 @@
         ref="lyricPlayerRef"
         :lyricLines="amLyricsData"
         :currentTime="currentTime"
-        :seekTime="statusStore.currentTime"
+        :seekTime="statusStore.currentTime + offsetMs"
         :seekVersion="statusStore.lyricSeekVersion"
         :playing="statusStore.playStatus"
         :enableSpring="settingStore.useAMSpring"
@@ -117,6 +117,8 @@ const amLyricsData = computed(() => {
   return clonedLyrics;
 });
 
+const offsetMs = computed(() => statusStore.getSongOffset(musicStore.playSong?.id));
+
 // 是否有对唱行
 const hasDuet = computed(() => amLyricsData.value?.some((line) => line.isDuet) ?? false);
 
@@ -134,8 +136,7 @@ const jumpSeek = (event: LyricLineMouseEvent) => {
   // 让 LyricPlayer 跳转到目标时间，第二个参数 isSeek = true 会重置滚动状态
   lyricPlayerRef.value?.setCurrentTime(lyricTargetTime, true);
   // 获取偏移时间，计算歌曲真实的目标时间，并跳转
-  const offsetMs = statusStore.getSongOffset(musicStore.playSong?.id);
-  const musicTargetTime = lyricTargetTime - offsetMs;
+  const musicTargetTime = lyricTargetTime - offsetMs.value;
   player.setSeek(musicTargetTime);
   player.play();
 };
