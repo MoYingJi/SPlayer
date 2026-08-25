@@ -112,11 +112,14 @@ prepare() {
 
     NODE_ENV=development    pnpm install
     NODE_ENV=development    pnpm add -w object-inspect side-channel-list side-channel-map side-channel-weakmap
+
+    cargo fetch
 }
 
 build() {
     cd "${srcdir}/splayer"
     export CARGO_HOME="${srcdir}/.cargo"
+    export RUSTFLAGS="${RUSTFLAGS:-} --remap-path-prefix=${srcdir}=/src"
     export PATH="${CARGO_HOME}/bin:${PATH}"
     local electronDist="/usr/lib/electron${_electronversion}"
     NODE_ENV=production     pnpm build:linux dir -c.electronDist="${electronDist}"
