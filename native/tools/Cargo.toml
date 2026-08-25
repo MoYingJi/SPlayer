@@ -16,9 +16,7 @@ tokio = { version = "1", features = [
 ] }
 futures-util = "0.3"
 bytes = "1"
-dashmap = "6"
 tokio-util = "0.7"
-once_cell = "1"
 anyhow = "1.0"
 napi = { version = "3.8", features = ["napi9", "tokio_rt"] }
 napi-derive = "3.5"

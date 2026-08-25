@@ -716,20 +716,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52560adf09603e58c9a7ee1fe1dcb95a16927b17c127f0ac02d6e768a0e25bc1"
 
 [[package]]
-name = "dashmap"
-version = "6.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5041cc499144891f3790297212f32a74fb938e5136a14943f338ef9e0ae276cf"
-dependencies = [
- "cfg-if",
- "crossbeam-utils",
- "hashbrown 0.14.5",
- "lock_api",
- "once_cell",
- "parking_lot_core",
-]
-
-[[package]]
 name = "data-encoding"
 version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -928,7 +914,6 @@ dependencies = [
  "anyhow",
  "block2",
  "discord-rich-presence",
- "lofty 0.19.2",
  "mpris-server",
  "napi",
  "napi-build",
@@ -937,7 +922,6 @@ dependencies = [
  "objc2-app-kit",
  "objc2-foundation",
  "objc2-media-player",
- "rayon",
  "serde",
  "serde_json",
  "tempfile",
@@ -947,7 +931,6 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "url",
- "walkdir",
  "windows",
 ]
 
@@ -1281,12 +1264,6 @@ dependencies = [
  "crunchy",
  "zerocopy",
 ]
-
-[[package]]
-name = "hashbrown"
-version = "0.14.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 
 [[package]]
 name = "hashbrown"
@@ -1835,21 +1812,6 @@ dependencies = [
 
 [[package]]
 name = "lofty"
-version = "0.19.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee8436c21042327836a52493b8cb2e1bb8a8f44c723a838d8c8b01f0bb657ea2"
-dependencies = [
- "byteorder",
- "data-encoding",
- "flate2",
- "lofty_attr 0.10.0",
- "log",
- "ogg_pager 0.6.1",
- "paste",
-]
-
-[[package]]
-name = "lofty"
 version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca260c51a9c71f823fbfd2e6fbc8eb2ee09834b98c00763d877ca8bfa85cde3e"
@@ -1857,21 +1819,10 @@ dependencies = [
  "byteorder",
  "data-encoding",
  "flate2",
- "lofty_attr 0.11.1",
+ "lofty_attr",
  "log",
- "ogg_pager 0.7.2",
+ "ogg_pager",
  "paste",
-]
-
-[[package]]
-name = "lofty_attr"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83e2dcdba64a01c3ce936b02401ab17b52db3c72720cf484c9df3387ca7517d3"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -2359,15 +2310,6 @@ dependencies = [
  "bitflags 2.10.0",
  "objc2",
  "objc2-foundation",
-]
-
-[[package]]
-name = "ogg_pager"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87b0bef808533c5890ab77279538212efdbbbd9aa4ef1ccdfcfbf77a42f7e6fa"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]
@@ -3883,17 +3825,15 @@ dependencies = [
  "anyhow",
  "bytes",
  "crossbeam-channel",
- "dashmap",
  "futures-util",
  "image",
  "jwalk",
- "lofty 0.22.4",
+ "lofty",
  "md5",
  "napi",
  "napi-build",
  "napi-derive",
  "num-complex",
- "once_cell",
  "rayon",
  "reqwest",
  "rusqlite",
