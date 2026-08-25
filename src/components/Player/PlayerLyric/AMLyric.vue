@@ -65,10 +65,10 @@ import {
 } from "@applemusic-like-lyrics/core";
 import { type LyricPlayerRef } from "@/components/AMLL/LyricPlayer.vue";
 import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
-import { getLyricLanguage } from "@/utils/format";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { cloneDeep } from "lodash-es";
 import { lyricLangFontStyle } from "@/utils/lyric/lyricFontConfig";
+import { getLyricLanguage, type LyricLanguage } from "@/utils/lyric/language";
 import { getFontSize } from "@/utils/style";
 
 defineProps({
@@ -160,8 +160,10 @@ const processLyricLanguage = (player = lyricPlayerRef.value) => {
       const content = lyricLine.words.map((w) => w.word).join("");
       if (!content) continue;
 
-      // 获取歌词语言
-      const lang = getLyricLanguage(content);
+      // 优先使用预计算的语言，降级到逐行检测
+      const lang =
+        (lyricLine as LyricLine & { language?: LyricLanguage }).language ??
+        getLyricLanguage(content);
 
       // 为主歌词设置 lang 属性 (firstChild 获取主歌词 不为翻译和音译设置属性)
       const lyricMainLineElement = lyricLineElement.firstChild;

@@ -15,6 +15,7 @@ import {
   parseQRCLyric,
   parseSmartLrc,
 } from "@/utils/lyric/lyricParser";
+import { applyLyricLanguages } from "@/utils/lyric/language";
 import { stripLyricMetadata } from "@/utils/lyric/lyricStripper";
 import { parseLrc } from "@/utils/lyric/parseLrc";
 import { getConverter } from "@/utils/opencc";
@@ -750,6 +751,9 @@ class LyricManager {
       }
       return;
     }
+    // 为歌词行附加语言信息
+    applyLyricLanguages(lyricData.lrcData);
+    applyLyricLanguages(lyricData.yrcData);
     // 设置歌词
     musicStore.setSongLyric(lyricData, true);
     // 结束加载状态
