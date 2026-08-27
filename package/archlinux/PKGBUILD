@@ -17,10 +17,10 @@ depends=(
     'openssl'
     'dbus'
     'fontconfig'
-    'libpulse'
 )
 optdepends=(
-    'mpv: for mpv playback engine support'
+    'mpv: MPV 播放引擎支持'
+    'libpulse: 音频捕获 听歌识曲需要'
 )
 makedepends=(
     'git'
@@ -31,6 +31,7 @@ makedepends=(
     'gendesk'
     'curl'
     'jq'
+    'libpulse'
 )
 source=(
     'splayer::git+https://github.com/MoYingJi/SPlayer.git#branch=legacy-continue'
@@ -112,8 +113,7 @@ prepare() {
 
     NODE_ENV=development    pnpm install
     NODE_ENV=development    pnpm add -w object-inspect side-channel-list side-channel-map side-channel-weakmap
-
-    cargo fetch
+    # cargo fetch
 }
 
 build() {
