@@ -1,7 +1,10 @@
 import type { LyricLine } from "@applemusic-like-lyrics/lyric";
+import type { LyricLine as LyricLineWithRuby } from "@applemusic-like-lyrics/core";
 
 /** 歌词行语言类型 */
-export type LyricLanguage = "ja" | "ko" | "zh-CN" | "und-Latn";
+export type LyricLanguage = LyricLanguageCJK | "und-Latn";
+
+export type LyricLanguageCJK = "zh-CN" | "ja" | "ko";
 
 /** 附加了语言信息的歌词行 */
 export type LyricLineWithLanguage = LyricLine & { language?: LyricLanguage };
@@ -48,34 +51,85 @@ const hasTranslation = (line: LyricLine): boolean => line.translatedLyric.trim()
  * @param lines - 已解析的整首歌词
  */
 export const applyLyricLanguages = (lines: LyricLine[]): void => {
-  const lineContents = lines.map((line) => line.words.map((word) => word.word).join(""));
+  const lineContents = lines.map((line) =>
+    (line as LyricLineWithRuby).words
+      .map((word) => `${word.word}${word.ruby ? `(${word.ruby})` : ""}`)
+      .join(""),
+  );
 
-  let hasKana = false;
-  let hasHangul = false;
-  let kanaUntranslatedCount = 0;
-  let hangulUntranslatedCount = 0;
+  // 统计全局行级 CJK 特征
+  let hanLineCount = 0;
+  let kanaLineCount = 0;
+  let hangulLineCount = 0;
+  let hanTranslatedCount = 0;
+  let kanaTranslatedCount = 0;
+  let hangulTranslatedCount = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const content = lineContents[i];
     const isTranslated = hasTranslation(lines[i]);
 
+    if (HAN_RE.test(content)) {
+      hanLineCount++;
+      if (isTranslated) hanTranslatedCount++;
+    }
     if (KANA_RE.test(content)) {
-      hasKana = true;
-      if (!isTranslated) kanaUntranslatedCount++;
+      kanaLineCount++;
+      if (isTranslated) kanaTranslatedCount++;
     }
     if (HANGUL_RE.test(content)) {
-      hasHangul = true;
-      if (!isTranslated) hangulUntranslatedCount++;
+      hangulLineCount++;
+      if (isTranslated) hangulTranslatedCount++;
     }
   }
 
-  const allKanaTranslated = hasKana && kanaUntranslatedCount === 0;
-  const allHangulTranslated = hasHangul && hangulUntranslatedCount === 0;
+  const hasHan = hanLineCount > 0;
+  const hasKana = kanaLineCount > 0;
+  const hasHangul = hangulLineCount > 0;
 
+  // CJK 翻译启发式标志
+  const allKanaTranslated = hasKana && kanaTranslatedCount === kanaLineCount;
+  const allHangulTranslated = hasHangul && hangulTranslatedCount === hangulLineCount;
+
+  // CJK 比例启发式标志
+  const allHanUntranslated = hasHan && hanTranslatedCount === hanLineCount;
+  const allKanaUntranslated = hasKana && kanaTranslatedCount === kanaLineCount;
+  const allHangulUntranslated = hasHangul && hangulTranslatedCount === hangulLineCount;
+  const kanaRatio = hasHan ? kanaLineCount / hanLineCount : Infinity;
+  const hangulRatio = hasHan ? hangulLineCount / hanLineCount : Infinity;
+  const THRESHOLD = 0.3;
+
+  // 判断纯汉字行的语言
+  const getPureHanLineLang = (line: LyricLine): LyricLanguageCJK => {
+    const isTranslated = hasTranslation(line);
+
+    if (hasKana) {
+      if (allKanaTranslated) {
+        return isTranslated ? "ja" : "zh-CN";
+      } else if (allHanUntranslated && allKanaUntranslated) {
+        return kanaRatio > THRESHOLD ? "ja" : "zh-CN";
+      } else {
+        return hasKana ? "ja" : "zh-CN";
+      }
+    }
+
+    if (hasHangul) {
+      if (allHangulTranslated) {
+        return isTranslated ? "ko" : "zh-CN";
+      } else if (allHanUntranslated && allHangulUntranslated) {
+        return hangulRatio > THRESHOLD ? "ko" : "zh-CN";
+      } else {
+        return hasHangul ? "ko" : "zh-CN";
+      }
+    }
+
+    return "zh-CN";
+  };
+
+  // 逐行标注
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const content = lineContents[i];
-    const isTranslated = hasTranslation(line);
 
     let lang: LyricLanguage | undefined;
 
@@ -84,13 +138,7 @@ export const applyLyricLanguages = (lines: LyricLine[]): void => {
     } else if (HANGUL_RE.test(content)) {
       lang = "ko";
     } else if (HAN_RE.test(content)) {
-      if (hasKana) {
-        lang = allKanaTranslated && !isTranslated ? "zh-CN" : "ja";
-      } else if (hasHangul) {
-        lang = allHangulTranslated && !isTranslated ? "zh-CN" : "ko";
-      } else {
-        lang = "zh-CN";
-      }
+      lang = getPureHanLineLang(line);
     } else if (LATIN_RE.test(content)) {
       lang = "und-Latn";
     }
