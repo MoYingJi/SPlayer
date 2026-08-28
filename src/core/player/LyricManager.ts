@@ -20,7 +20,7 @@ import { stripLyricMetadata } from "@/utils/lyric/lyricStripper";
 import { parseLrc } from "@/utils/lyric/parseLrc";
 import { getConverter } from "@/utils/opencc";
 import { type LyricLine, parseTTML, parseYrc } from "@applemusic-like-lyrics/lyric";
-import { cloneDeep, isEmpty } from "lodash-es";
+import { cloneDeep } from "lodash-es";
 import { attachTtmlBgLines, cleanTTMLTranslations } from "@/utils/lyric/parseTTML";
 
 interface LyricFetchResult {
@@ -28,6 +28,7 @@ interface LyricFetchResult {
   meta: {
     usingTTMLLyric: boolean;
     usingQRCLyric: boolean;
+    localOverrideFound: boolean;
   };
 }
 
@@ -235,7 +236,7 @@ class LyricManager {
     if (!id)
       return {
         data: { lrcData: [], yrcData: [] },
-        meta: { usingTTMLLyric: false, usingQRCLyric: false },
+        meta: { usingTTMLLyric: false, usingQRCLyric: false, localOverrideFound: false },
       };
 
     // 最终结果
@@ -244,6 +245,7 @@ class LyricManager {
     const meta = {
       usingTTMLLyric: false,
       usingQRCLyric: false,
+      localOverrideFound: false,
     };
 
     // 是否采用了 TTML
@@ -395,7 +397,7 @@ class LyricManager {
   private async fetchLocalLyric(song: SongType): Promise<LyricFetchResult> {
     const defaultResult: LyricFetchResult = {
       data: { lrcData: [], yrcData: [] },
-      meta: { usingTTMLLyric: false, usingQRCLyric: false },
+      meta: { usingTTMLLyric: false, usingQRCLyric: false, localOverrideFound: false },
     };
     if (!song.path) return defaultResult;
 
@@ -415,7 +417,7 @@ class LyricManager {
         }
         return {
           data: { lrcData: [], yrcData: lines },
-          meta: { usingTTMLLyric: false, usingQRCLyric: false },
+          meta: { usingTTMLLyric: false, usingQRCLyric: false, localOverrideFound: false },
         };
       }
       // TTML 直接返回
@@ -425,7 +427,7 @@ class LyricManager {
         const lines = ttml?.lines || [];
         return {
           data: { lrcData: [], yrcData: lines },
-          meta: { usingTTMLLyric: true, usingQRCLyric: false },
+          meta: { usingTTMLLyric: true, usingQRCLyric: false, localOverrideFound: false },
         };
       }
       // 解析本地歌词
@@ -434,7 +436,7 @@ class LyricManager {
       if (isWordLevelFormat(lrcFormat)) {
         return {
           data: { lrcData: [], yrcData: parsedLines },
-          meta: { usingTTMLLyric: false, usingQRCLyric: false },
+          meta: { usingTTMLLyric: false, usingQRCLyric: false, localOverrideFound: false },
         };
       }
       // 普通格式
@@ -454,7 +456,7 @@ class LyricManager {
       }
       return {
         data: aligned,
-        meta: { usingTTMLLyric: false, usingQRCLyric },
+        meta: { usingTTMLLyric: false, usingQRCLyric, localOverrideFound: false },
       };
     } catch {
       return defaultResult;
@@ -471,15 +473,15 @@ class LyricManager {
     const { localLyricPath, editLyricSavePath } = settingStore;
     const defaultResult: LyricFetchResult = {
       data: { lrcData: [], yrcData: [] },
-      meta: { usingTTMLLyric: false, usingQRCLyric: false }, // 覆盖默认没有 QRC
+      meta: { usingTTMLLyric: false, usingQRCLyric: false, localOverrideFound: false },
     };
 
     if (!isElectron) return defaultResult;
 
     // 合并本地歌词目录和优化歌词保存目录
     const lyricDirs = [
-      ...(Array.isArray(localLyricPath) ? localLyricPath.map((p) => String(p)) : []),
       ...(editLyricSavePath ? [editLyricSavePath] : []),
+      ...(Array.isArray(localLyricPath) ? localLyricPath.map((p) => String(p)) : []),
     ];
 
     if (!lyricDirs.length) return defaultResult;
@@ -487,11 +489,14 @@ class LyricManager {
     // 从本地遍历
     try {
       // 读取本地歌词
-      const { lrc, ttml } = await window.electron.ipcRenderer.invoke(
+      const { lrc, ttml, lrcExists, ttmlExists } = await window.electron.ipcRenderer.invoke(
         "read-local-lyric",
         lyricDirs,
         id,
       );
+
+      // 检查是否有本地覆盖文件
+      const hasLocalOverride = lrcExists || ttmlExists;
 
       // 安全解析 LRC
       let lrcLines: LyricLine[] = [];
@@ -527,13 +532,21 @@ class LyricManager {
       if (lrcIsWordLevel && lrcLines.length > 0) {
         return {
           data: { lrcData: [], yrcData: lrcLines },
-          meta: { usingTTMLLyric: false, usingQRCLyric: false },
+          meta: {
+            usingTTMLLyric: false,
+            usingQRCLyric: false,
+            localOverrideFound: hasLocalOverride,
+          },
         };
       }
 
       return {
         data: { lrcData: lrcLines, yrcData: ttmlLines },
-        meta: { usingTTMLLyric: ttmlLines.length > 0, usingQRCLyric: false },
+        meta: {
+          usingTTMLLyric: ttmlLines.length > 0,
+          usingQRCLyric: false,
+          localOverrideFound: hasLocalOverride,
+        },
       };
     } catch (error) {
       console.error("读取本地歌词失败:", error);
@@ -774,7 +787,11 @@ class LyricManager {
    */
   private async fetchStreamingLyric(song: SongType): Promise<LyricFetchResult> {
     const result: SongLyric = { lrcData: [], yrcData: [] };
-    const defaultMeta = { usingTTMLLyric: false, usingQRCLyric: false };
+    const defaultMeta = {
+      usingTTMLLyric: false,
+      usingQRCLyric: false,
+      localOverrideFound: false,
+    };
 
     if (song.type !== "streaming" || !song.originalId || !song.serverId) {
       return { data: result, meta: defaultMeta };
@@ -853,7 +870,7 @@ class LyricManager {
     const isStreaming = song?.type === "streaming";
     let fetchResult: LyricFetchResult = {
       data: { lrcData: [], yrcData: [] },
-      meta: { usingTTMLLyric: false, usingQRCLyric: false },
+      meta: { usingTTMLLyric: false, usingQRCLyric: false, localOverrideFound: false },
     };
 
     try {
@@ -864,8 +881,8 @@ class LyricManager {
       } else {
         // 检查本地覆盖
         const overrideResult = await this.fetchLocalOverrideLyric(song.id);
-        if (!isEmpty(overrideResult.data.lrcData) || !isEmpty(overrideResult.data.yrcData)) {
-          // 对齐
+        if (overrideResult.meta.localOverrideFound) {
+          // 找到本地覆盖文件（无论是否为空），直接使用
           overrideResult.data.lrcData = alignLyricLines(overrideResult.data.lrcData);
           fetchResult = overrideResult;
         } else if (song.path) {
