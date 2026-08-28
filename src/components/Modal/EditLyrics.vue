@@ -35,6 +35,7 @@ import { parseTTML } from "@applemusic-like-lyrics/lyric";
 import { useMusicStore, useSettingStore } from "@/stores";
 import { useLyricManager } from "@/core/player/LyricManager";
 import { compressXml, formatXml } from "@/utils/format";
+import { lyricLinesToPlainText, plainTextToLyricLines } from "@/utils/lyric/lyricPlainText";
 import {
   lyricLinesToEnhancedLrc,
   lyricLinesToLrc,
@@ -47,7 +48,12 @@ interface EditMode {
   key: string;
   label: string;
   toEditor: (lines: LyricLine[]) => string;
-  fromEditor: (content: string) => LyricLine[];
+  /**
+   * 将编辑器内容转换回歌词数据
+   * @param content 编辑器内容
+   * @param baseLines 生成当前编辑器内容的歌词数据（用于纯文本模式补全时间戳）
+   */
+  fromEditor: (content: string, baseLines: LyricLine[]) => LyricLine[];
   /** 切换到此模式时的警告信息，null 表示无警告 */
   warning: string | null;
 }
@@ -110,11 +116,21 @@ const modes: EditMode[] = [
     },
     warning: "LRC 格式不支持对唱等高级特性，切换后这些信息将丢失。",
   },
+  {
+    key: "plain",
+    label: "纯文本",
+    toEditor: (lines) => lyricLinesToPlainText(lines),
+    fromEditor: (content, baseLines) => plainTextToLyricLines(content, baseLines),
+    warning:
+      "纯文本模式不含时间戳，只能修改文字内容：歌词行数与每行单词数必须保持一致（如需删除某行，请将该行留空而非移除整行），否则将无法保存。",
+  },
 ];
 
 const activeMode = ref(modes[0].key);
 const editorContent = ref(modes[0].toEditor(props.lyrics));
 const lastSavedContent = ref(editorContent.value);
+/** 生成当前编辑器内容的歌词数据（纯文本模式据此补全时间戳） */
+const editorBaseLines = ref<LyricLine[]>(props.lyrics);
 const hasOverride = ref(false);
 
 // 检查本地覆盖文件是否存在
@@ -131,6 +147,12 @@ const hasChanges = computed(() => editorContent.value !== lastSavedContent.value
 // 获取当前模式
 const currentMode = computed(() => modes.find((m) => m.key === activeMode.value)!);
 
+// 获取当前编辑器内容对应的歌词数据（内容无变动时直接复用原数据，避免多余的转换）
+const resolveEditorLines = (): LyricLine[] =>
+  hasChanges.value
+    ? currentMode.value.fromEditor(editorContent.value, editorBaseLines.value)
+    : editorBaseLines.value;
+
 // 切换编辑模式
 const handleModeChange = (targetKey: string) => {
   if (targetKey === activeMode.value) return;
@@ -141,7 +163,7 @@ const handleModeChange = (targetKey: string) => {
   const doSwitch = (keepContent: boolean) => {
     if (targetMode.warning) {
       window.$dialog.warning({
-        title: "切换到 LRC 格式",
+        title: `切换到${targetMode.label}格式`,
         content: targetMode.warning,
         positiveText: "继续",
         negativeText: "取消",
@@ -174,23 +196,25 @@ const switchMode = (targetKey: string, keepContent: boolean) => {
   try {
     if (keepContent) {
       // 解析当前内容，再转换为目标格式
-      const lines = currentMode.value.fromEditor(editorContent.value);
+      const lines = resolveEditorLines();
       editorContent.value = targetMode.toEditor(lines);
+      editorBaseLines.value = lines;
     } else {
       // 重置为默认内容
       editorContent.value = targetMode.toEditor(props.lyrics);
+      editorBaseLines.value = props.lyrics;
     }
     lastSavedContent.value = editorContent.value;
     activeMode.value = targetKey;
   } catch (e) {
-    window.$message.error("内容格式错误，无法切换");
+    window.$message.error(`内容格式错误，无法切换：${(e as Error)?.message ?? e}`);
   }
 };
 
 // 保存
 const handleSave = async () => {
   try {
-    const lines = currentMode.value.fromEditor(editorContent.value);
+    const lines = currentMode.value.fromEditor(editorContent.value, editorBaseLines.value);
     const ttml = lyricLinesToTTML(lines);
     const success = await window.electron.ipcRenderer.invoke(
       "write-local-lyric",
@@ -200,6 +224,7 @@ const handleSave = async () => {
     );
     if (success) {
       lastSavedContent.value = editorContent.value;
+      editorBaseLines.value = lines;
       refreshLyric();
       window.$message.success("歌词已保存");
       props.onClose();
@@ -207,7 +232,7 @@ const handleSave = async () => {
       window.$message.error("歌词保存失败");
     }
   } catch (e) {
-    window.$message.error("内容格式错误或保存失败");
+    window.$message.error(`内容格式错误或保存失败：${(e as Error)?.message ?? e}`);
   }
 };
 
