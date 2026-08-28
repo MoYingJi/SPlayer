@@ -137,6 +137,7 @@ declare module 'vue' {
     NTag: typeof import('naive-ui')['NTag']
     NText: typeof import('naive-ui')['NText']
     NThing: typeof import('naive-ui')['NThing']
+    NTooltip: typeof import('naive-ui')['NTooltip']
     NTree: typeof import('naive-ui')['NTree']
     PersonalFM: typeof import('./src/components/Player/PlayerComponents/PersonalFM.vue')['default']
     PlayerBackground: typeof import('./src/components/Player/PlayerMeta/PlayerBackground.vue')['default']

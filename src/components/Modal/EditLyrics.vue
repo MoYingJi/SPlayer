@@ -4,6 +4,18 @@
       请先在设置 → 本地配置中设置「优化歌词保存目录」
     </n-alert>
     <n-tabs :value="activeMode" type="line" @update:value="handleModeChange" animated>
+      <template #suffix>
+        <n-tooltip v-if="currentMode.guide" trigger="hover">
+          <template #trigger>
+            <n-button quaternary circle size="small" @click="openGuide">
+              <template #icon>
+                <SvgIcon name="Help" />
+              </template>
+            </n-button>
+          </template>
+          查看 {{ currentMode.label }} 模式的完整指引
+        </n-tooltip>
+      </template>
       <n-tab-pane v-for="mode in modes" :key="mode.key" :name="mode.key" :tab="mode.label">
         <n-input
           v-model:value="editorContent"
@@ -32,10 +44,15 @@
 <script setup lang="ts">
 import type { LyricLine } from "@applemusic-like-lyrics/lyric";
 import { parseTTML } from "@applemusic-like-lyrics/lyric";
+import { NScrollbar } from "naive-ui";
 import { useMusicStore, useSettingStore } from "@/stores";
 import { useLyricManager } from "@/core/player/LyricManager";
 import { compressXml, formatXml } from "@/utils/format";
-import { lyricLinesToPlainText, plainTextToLyricLines } from "@/utils/lyric/lyricPlainText";
+import {
+  PLAIN_TEXT_GUIDE,
+  lyricLinesToPlainText,
+  plainTextToLyricLines,
+} from "@/utils/lyric/lyricPlainText";
 import {
   lyricLinesToEnhancedLrc,
   lyricLinesToLrc,
@@ -56,6 +73,8 @@ interface EditMode {
   fromEditor: (content: string, baseLines: LyricLine[]) => LyricLine[];
   /** 切换到此模式时的警告信息，null 表示无警告 */
   warning: string | null;
+  /** 完整格式指引，存在时在标签栏右侧显示查看按钮 */
+  guide?: string;
 }
 
 const props = defineProps<{
@@ -86,7 +105,7 @@ const modes: EditMode[] = [
     key: "json",
     label: "JSON",
     toEditor: (lines) => JSON.stringify(lines, null, 4),
-    fromEditor: (content) => content ? JSON.parse(content) as LyricLine[] : [],
+    fromEditor: (content) => (content ? (JSON.parse(content) as LyricLine[]) : []),
     warning: null,
   },
   {
@@ -121,8 +140,8 @@ const modes: EditMode[] = [
     label: "纯文本",
     toEditor: (lines) => lyricLinesToPlainText(lines),
     fromEditor: (content, baseLines) => plainTextToLyricLines(content, baseLines),
-    warning:
-      "纯文本模式不含时间戳，只能修改文字内容：歌词行数与每行单词数必须保持一致（如需删除某行，请将该行留空而非移除整行），否则将无法保存。",
+    warning: null,
+    guide: PLAIN_TEXT_GUIDE,
   },
 ];
 
@@ -154,6 +173,21 @@ const resolveEditorLines = (useChangedValue: boolean = hasChanges.value): LyricL
     ? currentMode.value.fromEditor(editorContent.value, editorBaseLines.value)
     : editorBaseLines.value;
 
+// 查看当前模式的完整指引
+const openGuide = () => {
+  const { label, guide } = currentMode.value;
+  if (!guide) return;
+  window.$dialog.info({
+    title: `${label} 模式指引`,
+    content: () =>
+      h(NScrollbar, { style: { maxHeight: "60vh" } }, () =>
+        h("div", { class: "lyric-mode-guide" }, guide),
+      ),
+    positiveText: "我知道了",
+    style: { width: "600px" },
+  });
+};
+
 // 切换编辑模式
 const handleModeChange = (targetKey: string) => {
   if (targetKey === activeMode.value) return;
@@ -164,7 +198,7 @@ const handleModeChange = (targetKey: string) => {
   const doSwitch = (keepContent: boolean) => {
     if (targetMode.warning) {
       window.$dialog.warning({
-        title: `切换到${targetMode.label}格式`,
+        title: `切换到 ${targetMode.label} 格式`,
         content: targetMode.warning,
         positiveText: "继续",
         negativeText: "取消",
@@ -277,5 +311,14 @@ const refreshLyric = () => {
 
 .footer-actions {
   margin-top: 8px;
+}
+</style>
+
+<!-- 指引渲染在弹窗内，scoped 样式无法生效 -->
+<style lang="scss">
+.lyric-mode-guide {
+  line-height: 1.8;
+  white-space: pre-wrap;
+  padding-right: 12px;
 }
 </style>
