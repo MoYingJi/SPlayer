@@ -86,7 +86,7 @@ const modes: EditMode[] = [
     key: "json",
     label: "JSON",
     toEditor: (lines) => JSON.stringify(lines, null, 4),
-    fromEditor: (content) => JSON.parse(content) as LyricLine[],
+    fromEditor: (content) => content ? JSON.parse(content) as LyricLine[] : [],
     warning: null,
   },
   {
@@ -133,10 +133,11 @@ const lastSavedContent = ref(editorContent.value);
 const editorBaseLines = ref<LyricLine[]>(props.lyrics);
 const hasOverride = ref(false);
 
+const filePath = `${settingStore.editLyricSavePath}/${props.songId}.ttml`;
+
 // 检查本地覆盖文件是否存在
 onMounted(async () => {
   if (settingStore.editLyricSavePath) {
-    const filePath = `${settingStore.editLyricSavePath}/${props.songId}.ttml`;
     hasOverride.value = await window.electron.ipcRenderer.invoke("file-exists", filePath);
   }
 });
@@ -148,8 +149,8 @@ const hasChanges = computed(() => editorContent.value !== lastSavedContent.value
 const currentMode = computed(() => modes.find((m) => m.key === activeMode.value)!);
 
 // 获取当前编辑器内容对应的歌词数据（内容无变动时直接复用原数据，避免多余的转换）
-const resolveEditorLines = (): LyricLine[] =>
-  hasChanges.value
+const resolveEditorLines = (useChangedValue: boolean = hasChanges.value): LyricLine[] =>
+  useChangedValue
     ? currentMode.value.fromEditor(editorContent.value, editorBaseLines.value)
     : editorBaseLines.value;
 
@@ -184,7 +185,7 @@ const handleModeChange = (targetKey: string) => {
       onNegativeClick: () => doSwitch(false),
     });
   } else {
-    doSwitch(true);
+    doSwitch(false);
   }
 };
 
@@ -194,16 +195,11 @@ const switchMode = (targetKey: string, keepContent: boolean) => {
   if (!targetMode) return;
 
   try {
-    if (keepContent) {
-      // 解析当前内容，再转换为目标格式
-      const lines = resolveEditorLines();
-      editorContent.value = targetMode.toEditor(lines);
-      editorBaseLines.value = lines;
-    } else {
-      // 重置为默认内容
-      editorContent.value = targetMode.toEditor(props.lyrics);
-      editorBaseLines.value = props.lyrics;
-    }
+    const lines = resolveEditorLines(keepContent);
+
+    editorContent.value = targetMode.toEditor(lines);
+    editorBaseLines.value = lines;
+
     lastSavedContent.value = editorContent.value;
     activeMode.value = targetKey;
   } catch (e) {
@@ -214,8 +210,8 @@ const switchMode = (targetKey: string, keepContent: boolean) => {
 // 保存
 const handleSave = async () => {
   try {
-    const lines = currentMode.value.fromEditor(editorContent.value, editorBaseLines.value);
-    const ttml = lyricLinesToTTML(lines);
+    const lines = resolveEditorLines(true);
+    const ttml = lines.length ? lyricLinesToTTML(lines) : "";
     const success = await window.electron.ipcRenderer.invoke(
       "write-local-lyric",
       settingStore.editLyricSavePath,
@@ -244,7 +240,6 @@ const handleDelete = () => {
     positiveText: "确定删除",
     negativeText: "取消",
     onPositiveClick: async () => {
-      const filePath = `${settingStore.editLyricSavePath}/${props.songId}.ttml`;
       await window.electron.ipcRenderer.invoke("delete-file", filePath);
       refreshLyric();
       window.$message.success("已恢复原歌词");
