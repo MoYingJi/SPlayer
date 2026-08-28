@@ -1,4 +1,5 @@
 import type { LyricLine, LyricWord } from "@applemusic-like-lyrics/lyric";
+import { stringifyTTML } from "@applemusic-like-lyrics/lyric";
 import { cloneDeep } from "lodash-es";
 import { parseLrc } from "./parseLrc";
 import { extractLyricContent } from "./parseQrc";
@@ -510,118 +511,15 @@ export const parseQRCLyric = (qrcContent: string, trans?: string, roma?: string)
   return result;
 };
 
-// XML Builder Helper Class
-class XmlNode {
-  name: string;
-  attributes: Record<string, string>;
-  children: (XmlNode | string)[];
-
-  constructor(name: string, attributes: Record<string, string> = {}) {
-    this.name = name;
-    this.attributes = attributes;
-    this.children = [];
-  }
-
-  addChild(child: XmlNode | string) {
-    this.children.push(child);
-    return this;
-  }
-
-  private escape(str: string): string {
-    return str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&apos;");
-  }
-
-  toString(indent = 0): string {
-    const spaces = " ".repeat(indent);
-    const attrs = Object.entries(this.attributes)
-      .map(([key, val]) => `${key}="${this.escape(String(val))}"`)
-      .join(" ");
-
-    const attrStr = attrs ? " " + attrs : "";
-
-    if (this.children.length === 0) {
-      return `${spaces}<${this.name}${attrStr} />`;
-    }
-
-    const isAllText = this.children.every((c) => typeof c === "string");
-
-    if (isAllText) {
-      const textContent = this.children.map((c) => this.escape(c as string)).join("");
-      return `${spaces}<${this.name}${attrStr}>${textContent}</${this.name}>`;
-    }
-
-    const childrenStr = this.children
-      .map((c) => (typeof c === "string" ? this.escape(c) : c.toString(indent + 2)))
-      .join("\n");
-
-    return `${spaces}<${this.name}${attrStr}>\n${childrenStr}\n${spaces}</${this.name}>`;
-  }
-}
-
 /**
  * 将 LyricLine 数组转换为 TTML 格式
  * @param lines LyricLine 数组
+ * @param metadata 元数据，默认包含标题
  * @returns TTML 格式字符串
  */
-export const lyricLinesToTTML = (lines: LyricLine[]): string => {
-  const formatTime = (ms: number): string => {
-    const totalSeconds = ms / 1000;
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toFixed(3).padStart(6, "0")}`;
-  };
-
-  const root = new XmlNode("tt", {
-    xmlns: "http://www.w3.org/ns/ttml",
-    "xmlns:ttm": "http://www.w3.org/ns/ttml#metadata",
-    "xmlns:amll": "http://www.example.com/ns/amll",
-  });
-
-  const head = new XmlNode("head");
-  const metadata = new XmlNode("metadata");
-  metadata.addChild(new XmlNode("ttm:title").addChild("Lyrics"));
-  head.addChild(metadata);
-  root.addChild(head);
-
-  const body = new XmlNode("body");
-  const div = new XmlNode("div");
-
-  for (const line of lines) {
-    const lineStart = formatTime(line.startTime);
-    const lineEnd = formatTime(line.endTime);
-
-    const p = new XmlNode("p", { begin: lineStart, end: lineEnd });
-
-    for (const word of line.words) {
-      // 过滤无效的空词（内容为空且时长为0）
-      if (!word.word || word.startTime === word.endTime) continue;
-
-      const wordStart = formatTime(word.startTime);
-      const wordEnd = formatTime(word.endTime);
-      p.addChild(new XmlNode("span", { begin: wordStart, end: wordEnd }).addChild(word.word));
-    }
-
-    if (line.translatedLyric) {
-      p.addChild(
-        new XmlNode("span", { "ttm:role": "x-translation" }).addChild(line.translatedLyric),
-      );
-    }
-
-    if (line.romanLyric) {
-      p.addChild(new XmlNode("span", { "ttm:role": "x-roman" }).addChild(line.romanLyric));
-    }
-
-    div.addChild(p);
-  }
-
-  body.addChild(div);
-  root.addChild(body);
-
-  return `<?xml version="1.0" encoding="utf-8"?>\n` + root.toString();
+export const lyricLinesToTTML = (
+  lines: LyricLine[],
+  metadata: [string, string[]][] = [],
+): string => {
+  return stringifyTTML({ lines, metadata });
 };
