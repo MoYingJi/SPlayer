@@ -35,7 +35,12 @@ import { parseTTML } from "@applemusic-like-lyrics/lyric";
 import { useMusicStore, useSettingStore } from "@/stores";
 import { useLyricManager } from "@/core/player/LyricManager";
 import { compressXml, formatXml } from "@/utils/format";
-import { lyricLinesToTTML } from "@/utils/lyric/lyricParser";
+import {
+  lyricLinesToEnhancedLrc,
+  lyricLinesToLrc,
+  lyricLinesToTTML,
+  parseSmartLrc,
+} from "@/utils/lyric/lyricParser";
 
 /** 编辑模式 */
 interface EditMode {
@@ -43,6 +48,8 @@ interface EditMode {
   label: string;
   toEditor: (lines: LyricLine[]) => string;
   fromEditor: (content: string) => LyricLine[];
+  /** 切换到此模式时的警告信息，null 表示无警告 */
+  warning: string | null;
 }
 
 const props = defineProps<{
@@ -55,6 +62,18 @@ const settingStore = useSettingStore();
 const musicStore = useMusicStore();
 const lyricManager = useLyricManager();
 
+// 检测歌词是否包含逐字信息
+const hasWordLevel = (lines: LyricLine[]): boolean => {
+  return lines.some((line) => {
+    if (line.words.length > 1) return true;
+    if (line.words.length === 1) {
+      const word = line.words[0];
+      return word.startTime !== line.startTime || word.endTime !== line.endTime;
+    }
+    return false;
+  });
+};
+
 // 编辑模式配置
 const modes: EditMode[] = [
   {
@@ -62,6 +81,7 @@ const modes: EditMode[] = [
     label: "JSON",
     toEditor: (lines) => JSON.stringify(lines, null, 4),
     fromEditor: (content) => JSON.parse(content) as LyricLine[],
+    warning: null,
   },
   {
     key: "ttml",
@@ -73,6 +93,22 @@ const modes: EditMode[] = [
     fromEditor: (content) => {
       return parseTTML(compressXml(content)).lines;
     },
+    warning: null,
+  },
+  {
+    key: "lrc",
+    label: "LRC",
+    toEditor: (lines) => {
+      if (hasWordLevel(lines)) {
+        return lyricLinesToEnhancedLrc(lines);
+      } else {
+        return lyricLinesToLrc(lines);
+      }
+    },
+    fromEditor: (content) => {
+      return parseSmartLrc(content).lines;
+    },
+    warning: "LRC 格式不支持对唱等高级特性，切换后这些信息将丢失。",
   },
 ];
 
@@ -99,17 +135,34 @@ const currentMode = computed(() => modes.find((m) => m.key === activeMode.value)
 const handleModeChange = (targetKey: string) => {
   if (targetKey === activeMode.value) return;
 
+  const targetMode = modes.find((m) => m.key === targetKey);
+  if (!targetMode) return;
+
+  const doSwitch = (keepContent: boolean) => {
+    if (targetMode.warning) {
+      window.$dialog.warning({
+        title: "切换到 LRC 格式",
+        content: targetMode.warning,
+        positiveText: "继续",
+        negativeText: "取消",
+        onPositiveClick: () => switchMode(targetKey, keepContent),
+      });
+    } else {
+      switchMode(targetKey, keepContent);
+    }
+  };
+
   if (hasChanges.value) {
     window.$dialog.warning({
       title: "切换编辑格式",
       content: "当前内容有变动，是否暂存？",
       positiveText: "暂存",
       negativeText: "不暂存",
-      onPositiveClick: () => switchMode(targetKey, true),
-      onNegativeClick: () => switchMode(targetKey, false),
+      onPositiveClick: () => doSwitch(true),
+      onNegativeClick: () => doSwitch(false),
     });
   } else {
-    switchMode(targetKey, true);
+    doSwitch(true);
   }
 };
 

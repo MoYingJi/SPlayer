@@ -1,5 +1,5 @@
 import type { LyricLine, LyricWord } from "@applemusic-like-lyrics/lyric";
-import { stringifyTTML } from "@applemusic-like-lyrics/lyric";
+import { stringifyLrcA2, stringifyTTML } from "@applemusic-like-lyrics/lyric";
 import { cloneDeep } from "lodash-es";
 import { parseLrc } from "./parseLrc";
 import { extractLyricContent } from "./parseQrc";
@@ -522,4 +522,124 @@ export const lyricLinesToTTML = (
   metadata: [string, string[]][] = [],
 ): string => {
   return stringifyTTML({ lines, metadata });
+};
+
+/**
+ * 将 LyricLine 数组转换为普通 LRC 格式（逐行，不保留逐字时间）
+ * 如果当前一行与后一行有时间上的空隙，则补一行空行代表前一行的结束时间
+ * 如果有翻译或音译，则在同一时间戳后追加多行
+ * @param lines LyricLine 数组
+ * @returns LRC 格式字符串
+ */
+export const lyricLinesToLrc = (lines: LyricLine[]): string => {
+  const formatTime = (ms: number): string => {
+    const totalSeconds = ms / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${seconds.toFixed(3).padStart(6, "0")}`;
+  };
+
+  let result = "";
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let text = line.words.map((w) => w.word).join("");
+
+    if (line.isBG) text = `(${text})`;
+    result += `[${formatTime(line.startTime)}]${text}\n`;
+
+    // 翻译行
+    if (line.translatedLyric) {
+      let translatedText = line.translatedLyric;
+      if (line.isBG) translatedText = `(${translatedText})`;
+      result += `[${formatTime(line.startTime)}]${translatedText}\n`;
+    }
+
+    // 音译行
+    if (line.romanLyric) {
+      let romanText = line.romanLyric;
+      if (line.isBG) romanText = `(${romanText})`;
+      result += `[${formatTime(line.startTime)}]${romanText}\n`;
+    }
+
+    // 检查是否需要补空行
+    if (i < lines.length - 1) {
+      const nextLine = lines[i + 1];
+      if (nextLine.startTime !== line.endTime) {
+        result += `[${formatTime(line.endTime)}]\n`;
+      }
+    }
+  }
+  return result.trim();
+};
+
+/**
+ * 将 LyricLine 数组转换为增强型 LRC 格式
+ * 会特别处理翻译和音译行
+ * @param lines LyricLine 数组
+ * @returns 增强型 LRC 格式字符串
+ */
+export const lyricLinesToEnhancedLrc = (lines: LyricLine[]): string => {
+  // 提取翻译和音译，生成新的歌词行
+  const processedLines: LyricLine[] = [];
+  for (const line of lines) {
+    // 主行
+    let words = [...line.words];
+    // 背景行：第一个词前加 (，最后一个词后加 )
+    if (line.isBG && words.length > 0) {
+      words = [
+        { ...words[0], word: `(${words[0].word}` },
+        ...words.slice(1, -1),
+        { ...words[words.length - 1], word: `${words[words.length - 1].word})` },
+      ];
+    } else if (line.isBG && words.length === 1) {
+      words = [{ ...words[0], word: `(${words[0].word})` }];
+    }
+    processedLines.push({
+      ...line,
+      words,
+      translatedLyric: "",
+      romanLyric: "",
+    });
+    // 翻译行
+    if (line.translatedLyric) {
+      let word = line.translatedLyric;
+      if (line.isBG) word = `(${word})`;
+      processedLines.push({
+        words: [{ startTime: line.startTime, endTime: line.endTime, word }],
+        startTime: line.startTime,
+        endTime: line.endTime,
+        translatedLyric: "",
+        romanLyric: "",
+        isBG: false,
+        isDuet: false,
+      });
+    }
+    // 音译行
+    if (line.romanLyric) {
+      let word = line.romanLyric;
+      if (line.isBG) word = `(${word})`;
+      processedLines.push({
+        words: [{ startTime: line.startTime, endTime: line.endTime, word }],
+        startTime: line.startTime,
+        endTime: line.endTime,
+        translatedLyric: "",
+        romanLyric: "",
+        isBG: false,
+        isDuet: false,
+      });
+    } else if (line.words.some((w) => w.romanWord?.trim())) {
+      let word = line.words.map((w) => w.romanWord).join(" ");
+      if (line.isBG) word = `(${word})`;
+      processedLines.push({
+        words: [{ startTime: line.startTime, endTime: line.endTime, word }],
+        startTime: line.startTime,
+        endTime: line.endTime,
+        translatedLyric: "",
+        romanLyric: "",
+        isBG: false,
+        isDuet: false,
+      });
+    }
+  }
+  return stringifyLrcA2(processedLines);
 };
