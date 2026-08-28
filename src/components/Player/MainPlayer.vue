@@ -256,6 +256,7 @@ import {
   openChangeRate,
   openCopySongInfo,
   openDownloadSong,
+  openEditLyrics,
   openJumpArtist,
   openPlaylistAdd,
 } from "@/utils/modal";
@@ -328,6 +329,19 @@ const songMoreOptions = computed<DropdownOption[]>(() => {
             onClick: () => openCopySongInfo(song.id),
           },
           icon: renderIcon("FormatList", { size: 18 }),
+        },
+        {
+          key: "edit-lyrics",
+          label: "歌词优化",
+          show: !isLocal && isSong,
+          props: {
+            onClick: () => {
+              const { songLyric } = musicStore;
+              const lyrics = songLyric.yrcData?.length ? songLyric.yrcData : songLyric.lrcData;
+              openEditLyrics(song.id, lyrics);
+            },
+          },
+          icon: renderIcon("Edit", { size: 18 }),
         },
         {
           key: "share",

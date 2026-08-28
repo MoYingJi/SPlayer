@@ -10,11 +10,13 @@ import {
 import { useDownloadManager } from "@/core/resource/DownloadManager";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { renderIcon, copyData, getShareUrl } from "@/utils/helper";
+import { useLyricManager } from "@/core/player/LyricManager";
 import { deleteCloudSong, importCloudSong } from "@/api/cloud";
 import {
   openCloudMatch,
   openCopySongInfo,
   openDownloadSong,
+  openEditLyrics,
   openPlaylistAdd,
   openSongInfoEditor,
 } from "@/utils/modal";
@@ -281,6 +283,36 @@ export const useSongMenu = () => {
               onClick: () => openCopySongInfo(song.id),
             },
             icon: renderIcon("FormatList", { size: 18 }),
+          },
+          {
+            key: "edit-lyrics",
+            label: "歌词优化",
+            show: !isLocal && type === "song",
+            props: {
+              onClick: async () => {
+                const abortController = new AbortController();
+                const loadingMsg = window.$message.loading("正在获取歌词...", {
+                  duration: 0,
+                  closable: true,
+                  onClose: () => {
+                    abortController.abort();
+                  },
+                });
+                try {
+                  const lyricManager = useLyricManager();
+                  const result = await lyricManager.fetchLyric(song);
+                  if (!abortController.signal.aborted) {
+                    const lyrics = result.data.yrcData?.length
+                      ? result.data.yrcData
+                      : result.data.lrcData;
+                    openEditLyrics(song.id, lyrics);
+                  }
+                } finally {
+                  loadingMsg.destroy();
+                }
+              },
+            },
+            icon: renderIcon("Edit", { size: 18 }),
           },
           {
             key: "share",
