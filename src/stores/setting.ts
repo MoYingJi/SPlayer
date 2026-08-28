@@ -238,6 +238,8 @@ export interface SettingState {
   localFilesPath: string[];
   /** 本地歌词路径 */
   localLyricPath: string[];
+  /** 优化歌词保存路径 */
+  editLyricSavePath: string;
   /** 本地文件分隔符 */
   localSeparators: string[];
   /** 显示本地封面 */
@@ -592,6 +594,7 @@ export const useSettingStore = defineStore("setting", {
     excludeCommentRegexes: [],
     localFilesPath: [],
     localLyricPath: [],
+    editLyricSavePath: "",
     showDefaultLocalPath: true,
     localFolderDisplayMode: "tab",
     localSeparators: ["/", "&"],

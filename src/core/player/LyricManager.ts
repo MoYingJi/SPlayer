@@ -468,17 +468,24 @@ class LyricManager {
    */
   private async fetchLocalOverrideLyric(id: number): Promise<LyricFetchResult> {
     const settingStore = useSettingStore();
-    const { localLyricPath } = settingStore;
+    const { localLyricPath, editLyricSavePath } = settingStore;
     const defaultResult: LyricFetchResult = {
       data: { lrcData: [], yrcData: [] },
       meta: { usingTTMLLyric: false, usingQRCLyric: false }, // 覆盖默认没有 QRC
     };
 
-    if (!isElectron || !localLyricPath.length) return defaultResult;
+    if (!isElectron) return defaultResult;
+
+    // 合并本地歌词目录和优化歌词保存目录
+    const lyricDirs = [
+      ...(Array.isArray(localLyricPath) ? localLyricPath.map((p) => String(p)) : []),
+      ...(editLyricSavePath ? [editLyricSavePath] : []),
+    ];
+
+    if (!lyricDirs.length) return defaultResult;
 
     // 从本地遍历
     try {
-      const lyricDirs = Array.isArray(localLyricPath) ? localLyricPath.map((p) => String(p)) : [];
       // 读取本地歌词
       const { lrc, ttml } = await window.electron.ipcRenderer.invoke(
         "read-local-lyric",

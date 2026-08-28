@@ -40,6 +40,7 @@
       <n-flex justify="space-between" align="center" class="footer-actions">
         <n-flex>
           <n-button @click="handleCopyMore"> 复制更多信息 </n-button>
+          <n-button @click="handleEditLyrics"> 优化歌词 </n-button>
         </n-flex>
         <n-flex>
           <n-button @click="selectAll">
@@ -57,7 +58,7 @@
 <script setup lang="ts">
 import { useMusicStore } from "@/stores";
 import { copyData } from "@/utils/helper";
-import { openCopySongInfo } from "@/utils/modal";
+import { openCopySongInfo, openEditLyrics } from "@/utils/modal";
 
 const props = defineProps<{ onClose: () => void }>();
 
@@ -154,6 +155,13 @@ const handleCopy = async () => {
  */
 const handleCopyMore = () => {
   openCopySongInfo(musicStore.playSong.id);
+};
+
+/**
+ * 优化歌词
+ */
+const handleEditLyrics = () => {
+  openEditLyrics(musicStore.playSong.id, rawLyrics.value);
 };
 </script>
 

@@ -360,6 +360,26 @@ export const changeLocalLyricPath = changeLocalPath({
 });
 
 /**
+ * 更改优化歌词保存目录
+ */
+export const changeEditLyricSavePath = async () => {
+  try {
+    if (!isElectron) return;
+    const settingStore = useSettingStore();
+    const selectedDir = await window.electron.ipcRenderer.invoke(
+      "choose-path",
+      "选择优化歌词保存目录",
+    );
+    if (selectedDir) {
+      settingStore.editLyricSavePath = selectedDir;
+    }
+  } catch (error) {
+    console.error("Error changing edit lyric save path: ", error);
+    window.$message.error("更改优化歌词保存目录出错，请重试");
+  }
+};
+
+/**
  * 洗牌数组（Fisher-Yates）
  */
 export const shuffleArray = <T>(arr: T[]): T[] => {

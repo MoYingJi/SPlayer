@@ -7,6 +7,7 @@ import { openLocalMusicDirectoryModal } from "@/utils/modal";
 import { pick } from "lodash-es";
 import LocalLyricDirectories from "../components/LocalLyricDirectories.vue";
 import CacheSizeLimit from "../components/CacheSizeLimit.vue";
+import { changeEditLyricSavePath } from "@/utils/helper";
 
 export const useLocalSettings = (): SettingConfig => {
   const statusStore = useStatusStore();
@@ -241,6 +242,24 @@ export const useLocalSettings = (): SettingConfig => {
             type: "custom",
             noWrapper: true,
             component: markRaw(LocalLyricDirectories),
+          },
+          {
+            key: "editLyricSavePath",
+            label: "优化歌词保存目录",
+            type: "button",
+            description: computed(
+              () => settingStore.editLyricSavePath || "未配置时无法保存优化歌词",
+            ),
+            buttonLabel: "更改",
+            action: changeEditLyricSavePath,
+            extraButton: {
+              label: "清除选择",
+              type: "primary",
+              secondary: true,
+              strong: true,
+              action: () => (settingStore.editLyricSavePath = ""),
+              show: computed(() => !!settingStore.editLyricSavePath),
+            },
           },
         ],
       },

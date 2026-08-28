@@ -1,7 +1,7 @@
 import type { SongMetadata } from "@native/tools";
 import type { Options as GlobOptions } from "fast-glob/out/settings";
 import { parseFile } from "music-metadata";
-import { access, readdir, readFile, stat } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { ipcLog } from "../logger";
 import { getFileID, getFileMD5, metaDataLyricsArrayToLrc } from "../utils/helper";
@@ -262,6 +262,25 @@ export class MusicMetadataService {
       /* 忽略错误 */
     }
     return result;
+  }
+
+  /**
+   * 写入本地歌词文件
+   * @param dir 保存目录
+   * @param id 歌曲 ID
+   * @param ttml TTML 歌词内容
+   */
+  async writeLocalLyric(dir: string, id: number, ttml: string): Promise<boolean> {
+    try {
+      // 确保目录存在
+      await mkdir(dir, { recursive: true });
+      const filePath = join(dir, `${id}.ttml`);
+      await writeFile(filePath, ttml, "utf-8");
+      return true;
+    } catch (error) {
+      ipcLog.error("❌ Write local lyric error", error);
+      return false;
+    }
   }
 
   /**

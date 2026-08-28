@@ -255,6 +255,11 @@ const initFileIpc = (): void => {
     return musicMetadataService.readLocalLyric(lyricDirs, id);
   });
 
+  // 写入本地歌词
+  ipcMain.handle("write-local-lyric", async (_, dir: string, id: number, ttml: string) => {
+    return musicMetadataService.writeLocalLyric(dir, id, ttml);
+  });
+
   // 删除文件
   ipcMain.handle("delete-file", async (_, path: string) => {
     try {

@@ -33,6 +33,7 @@ declare module 'vue' {
     CustomCode: typeof import('./src/components/Modal/Setting/CustomCode.vue')['default']
     DefaultLyric: typeof import('./src/components/Player/PlayerLyric/DefaultLyric.vue')['default']
     DownloadModal: typeof import('./src/components/Modal/DownloadModal.vue')['default']
+    EditLyrics: typeof import('./src/components/Modal/EditLyrics.vue')['default']
     Equalizer: typeof import('./src/components/Modal/Equalizer.vue')['default']
     ExcludeComment: typeof import('./src/components/Modal/Setting/ExcludeComment.vue')['default']
     ExcludeLyrics: typeof import('./src/components/Modal/Setting/ExcludeLyrics.vue')['default']

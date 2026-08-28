@@ -1,4 +1,5 @@
 import type { CoverType, SettingType, SongType } from "@/types/main";
+import type { LyricLine } from "@applemusic-like-lyrics/lyric";
 import { CURRENT_AGREEMENT_VERSION } from "@/constants/agreement";
 import { NScrollbar } from "naive-ui";
 import { isLogin } from "./auth";
@@ -545,6 +546,25 @@ export const openCopySongInfo = async (songId: number) => {
     content: () => {
       return h(CopySongInfo, {
         songId,
+        onClose: () => modal.destroy(),
+      });
+    },
+  });
+};
+
+/** 打开优化歌词弹窗 */
+export const openEditLyrics = async (songId: number, lyrics: LyricLine[]) => {
+  const { default: EditLyrics } = await import("@/components/Modal/EditLyrics.vue");
+  const modal = window.$modal.create({
+    preset: "card",
+    transformOrigin: "center",
+    autoFocus: false,
+    style: { width: "600px" },
+    title: "优化歌词",
+    content: () => {
+      return h(EditLyrics, {
+        songId,
+        lyrics,
         onClose: () => modal.destroy(),
       });
     },
