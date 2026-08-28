@@ -559,7 +559,7 @@ export const openEditLyrics = async (songId: number, lyrics: LyricLine[]) => {
     preset: "card",
     transformOrigin: "center",
     autoFocus: false,
-    style: { width: "600px" },
+    style: { width: "800px" },
     title: "优化歌词",
     content: () => {
       return h(EditLyrics, {

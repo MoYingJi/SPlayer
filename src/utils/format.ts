@@ -407,3 +407,77 @@ export const descMultiline = (strings: TemplateStringsArray, ...values: any[]): 
   const fullString = String.raw(strings, ...values);
   return trimIndentString(fullString, "\n", "<br>");
 };
+
+/**
+ * 将 XML 字符串格式化为美观缩进的字符串
+ * @param xmlStr 原始 XML 字符串
+ * @param indent 缩进字符（默认两个空格）
+ * @throws 当 XML 解析失败时抛出错误
+ */
+export function formatXml(xmlStr: string, indent: string = "  "): string {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(xmlStr, "text/xml");
+
+  // 检测解析错误
+  const errorNode = xmlDoc.querySelector("parsererror");
+  if (errorNode) {
+    throw new Error(`Invalid XML: ${errorNode.textContent}`);
+  }
+
+  // 递归序列化节点
+  function serializeNode(node: Node, level: number): string | null {
+    // 文本节点
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent?.trim() || "";
+      return text || null; // 忽略空白
+    }
+
+    // 元素节点
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as Element;
+      const tagName = element.tagName;
+
+      // 拼接属性
+      const attrs = Array.from(element.attributes)
+        .map((attr) => ` ${attr.name}="${attr.value}"`)
+        .join("");
+
+      const children = Array.from(element.childNodes);
+      const hasElementChild = children.some((child) => child.nodeType === Node.ELEMENT_NODE);
+
+      // 若无子元素，输出单行 <tag>text</tag>
+      if (!hasElementChild) {
+        const textContent = element.textContent?.trim() || "";
+        return `<${tagName}${attrs}>${textContent}</${tagName}>`;
+      }
+
+      // 有子元素，递归处理
+      let result = `<${tagName}${attrs}>`;
+      const childIndent = "\n" + indent.repeat(level + 1);
+
+      for (const child of children) {
+        const sub = serializeNode(child, level + 1);
+        if (sub !== null) {
+          result += childIndent + sub;
+        }
+      }
+
+      result += "\n" + indent.repeat(level) + `</${tagName}>`;
+      return result;
+    }
+
+    // 其他节点（注释、处理指令等）暂不处理
+    return null;
+  }
+
+  const root = xmlDoc.documentElement;
+  return serializeNode(root, 0) || "";
+}
+
+/**
+ * 压缩 XML 字符串，去除多余的空白和换行
+ * @param xmlStr 原始 XML 字符串
+ */
+export function compressXml(xmlStr: string): string {
+  return xmlStr.replace(/>\s+</g, "><").trim();
+}
