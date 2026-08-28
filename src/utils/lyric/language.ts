@@ -3,6 +3,9 @@ import type { LyricLine } from "@applemusic-like-lyrics/lyric";
 /** 歌词行语言类型 */
 export type LyricLanguage = "ja" | "ko" | "zh-CN" | "und-Latn";
 
+/** 附加了语言信息的歌词行 */
+export type LyricLineWithLanguage = LyricLine & { language?: LyricLanguage };
+
 /** 日语假名：平假名 + 片假名 + 半角假名 + 促音/长音符号 */
 const KANA_RE = /[\p{Script=Hiragana}\p{Script=Katakana}\u30FC\uFF66-\uFF9F]/u;
 
@@ -93,6 +96,6 @@ export const applyLyricLanguages = (lines: LyricLine[]): void => {
     }
 
     // 运行时动态附加 language 属性
-    (line as LyricLine & { language?: LyricLanguage }).language = lang;
+    (line as LyricLineWithLanguage).language = lang;
   }
 };

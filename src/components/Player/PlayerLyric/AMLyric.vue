@@ -68,7 +68,7 @@ import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { cloneDeep } from "lodash-es";
 import { lyricLangFontStyle } from "@/utils/lyric/lyricFontConfig";
-import { getLyricLanguage, type LyricLanguage } from "@/utils/lyric/language";
+import { getLyricLanguage, type LyricLineWithLanguage } from "@/utils/lyric/language";
 import { getFontSize } from "@/utils/style";
 
 defineProps({
@@ -162,9 +162,7 @@ const processLyricLanguage = (player = lyricPlayerRef.value) => {
       if (!content) continue;
 
       // 优先使用预计算的语言，降级到逐行检测
-      const lang =
-        (lyricLine as LyricLine & { language?: LyricLanguage }).language ??
-        getLyricLanguage(content);
+      const lang = (lyricLine as LyricLineWithLanguage).language ?? getLyricLanguage(content);
 
       // 为主歌词设置 lang 属性 (firstChild 获取主歌词 不为翻译和音译设置属性)
       const lyricMainLineElement = lyricLineElement.firstChild;

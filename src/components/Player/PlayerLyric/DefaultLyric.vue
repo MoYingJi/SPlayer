@@ -138,7 +138,7 @@ import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
 import { usePlayerController } from "@/core/player/PlayerController";
 import { isElectron } from "@/utils/env";
 import { lyricLangFontStyle } from "@/utils/lyric/lyricFontConfig";
-import type { LyricLanguage } from "@/utils/lyric/language";
+import type { LyricLanguage, LyricLineWithLanguage } from "@/utils/lyric/language";
 import { getFontSize } from "@/utils/style";
 
 const props = defineProps({
@@ -160,7 +160,7 @@ const isYrcMode = computed(() => settingStore.showWordLyrics && musicStore.isHas
 
 /** 获取歌词行的语言 */
 const getLineLanguage = (line: LyricLine): LyricLanguage | undefined => {
-  return (line as LyricLine & { language?: LyricLanguage }).language;
+  return (line as LyricLineWithLanguage).language;
 };
 
 // 获取当前使用的歌词数据
