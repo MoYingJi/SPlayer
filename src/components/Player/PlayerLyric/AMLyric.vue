@@ -39,6 +39,7 @@
         :enableBlur="settingStore.lyricsBlur"
         :hidePassedLines="settingStore.hidePassedLines"
         :wordFadeWidth="settingStore.wordFadeWidth"
+        :optimizeOptions="settingStore.amllOptimizeOptions"
         :style="{
           '--display-count-down-show': settingStore.countDownShow ? 'flex' : 'none',
           '--amll-lp-font-size': getFontSize(

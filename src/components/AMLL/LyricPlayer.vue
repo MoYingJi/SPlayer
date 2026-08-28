@@ -7,6 +7,7 @@ import {
   LyricPlayer as CoreLyricPlayer,
   type LyricLine,
   type LyricLineMouseEvent,
+  type OptimizeLyricOptions,
   type spring,
 } from "@applemusic-like-lyrics/core";
 import type { PropType, Ref, ShallowRef } from "vue";
@@ -88,6 +89,15 @@ const props = defineProps({
   hidePassedLines: {
     type: Boolean,
     default: false,
+  },
+  /**
+   * 设置歌词行的优化配置项，未提供的项将使用组件内部默认值（默认全部开启）
+   *
+   * 由于优化是在歌词载入时进行的，配置变更后会自动重新载入当前歌词以令其生效
+   */
+  optimizeOptions: {
+    type: Object as PropType<OptimizeLyricOptions>,
+    required: false,
   },
   /**
    * 设置当前播放歌词，要注意传入后这个数组内的信息不得修改，否则会发生错误
@@ -304,8 +314,13 @@ watchEffect(() => {
   else playerRef.value?.setEnableScale(true);
 });
 
-// 歌词行数据
+// 歌词优化配置与歌词行数据
+// 优化仅在 setLyricLines 时执行，故配置变更后需重新载入歌词，两者合并在同一个副作用中处理
 watchEffect(() => {
+  if (props.optimizeOptions !== undefined) {
+    // 展开一层以追踪各配置项的变更
+    playerRef.value?.setOptimizeOptions({ ...props.optimizeOptions });
+  }
   if (props.lyricLines !== undefined) playerRef.value?.setLyricLines(props.lyricLines);
 });
 

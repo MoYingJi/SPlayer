@@ -213,6 +213,21 @@ export interface SettingState {
   hidePassedLines: boolean;
   /** 文字动画的渐变宽度 */
   wordFadeWidth: number;
+  /** AMLL 歌词行优化配置 */
+  amllOptimizeOptions: {
+    /** 规范化歌词中的空格，将多个连续空格替换为一个空格 */
+    normalizeSpaces: boolean;
+    /** 将行级时间戳强行设为字级时间戳 */
+    resetLineTimestamps: boolean;
+    /** 把多行背景人声转换为单行背景人声 + 主歌词行的形式 */
+    convertExcessiveBackgroundLines: boolean;
+    /** 同步主歌词与背景人声的时间 */
+    syncMainAndBackgroundLines: boolean;
+    /** 清洗非刻意的重叠，以免不必要的多行高亮效果 */
+    cleanUnintentionalOverlaps: boolean;
+    /** 尝试让歌词提前最多 1 秒开始 */
+    tryAdvanceStartTime: boolean;
+  };
   /** 歌词时延调节步长（毫秒） */
   lyricOffsetStep: number;
   /** 音频延迟手动补偿（毫秒） */
@@ -560,6 +575,14 @@ export const useSettingStore = defineStore("setting", {
     useAMSpring: true,
     hidePassedLines: false,
     wordFadeWidth: 0.3,
+    amllOptimizeOptions: {
+      normalizeSpaces: true,
+      resetLineTimestamps: true,
+      convertExcessiveBackgroundLines: true,
+      syncMainAndBackgroundLines: true,
+      cleanUnintentionalOverlaps: true,
+      tryAdvanceStartTime: true,
+    },
     lyricOffsetStep: 500,
     audioDelayCompensation: 0,
     enableOnlineTTMLLyric: true,

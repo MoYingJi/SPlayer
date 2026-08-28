@@ -605,6 +605,86 @@ export const useLyricSettings = (): SettingConfig => {
         ],
       },
       {
+        title: "AMLL 歌词行优化",
+        tags: [{ text: "Beta", type: "warning" }],
+        show: () => settingStore.useAMLyrics,
+        items: [
+          {
+            key: "amllNormalizeSpaces",
+            label: "规范化空格",
+            type: "switch",
+            description: "将歌词中多个连续的空格替换为一个空格",
+            keywords: ["AMLL", "歌词优化"],
+            value: computed({
+              get: () => settingStore.amllOptimizeOptions.normalizeSpaces,
+              set: (v) => (settingStore.amllOptimizeOptions.normalizeSpaces = v),
+            }),
+          },
+          {
+            key: "amllResetLineTimestamps",
+            label: "重置行级时间戳",
+            type: "switch",
+            description: "将行级时间戳强行设为字级时间戳",
+            keywords: ["AMLL", "歌词优化"],
+            value: computed({
+              get: () => settingStore.amllOptimizeOptions.resetLineTimestamps,
+              set: (v) => (settingStore.amllOptimizeOptions.resetLineTimestamps = v),
+            }),
+          },
+          {
+            key: "amllConvertExcessiveBackgroundLines",
+            label: "合并多行背景人声",
+            type: "switch",
+            description: "把多行背景人声转换为单行背景人声 + 主歌词行的形式",
+            keywords: ["AMLL", "歌词优化"],
+            value: computed({
+              get: () => settingStore.amllOptimizeOptions.convertExcessiveBackgroundLines,
+              set: (v) => (settingStore.amllOptimizeOptions.convertExcessiveBackgroundLines = v),
+            }),
+          },
+          {
+            key: "amllSyncMainAndBackgroundLines",
+            label: "同步背景人声时间",
+            type: "switch",
+            description: "同步主歌词与背景人声的时间",
+            keywords: ["AMLL", "歌词优化"],
+            value: computed({
+              get: () => settingStore.amllOptimizeOptions.syncMainAndBackgroundLines,
+              set: (v) => (settingStore.amllOptimizeOptions.syncMainAndBackgroundLines = v),
+            }),
+          },
+          {
+            key: "amllCleanUnintentionalOverlaps",
+            label: "清洗非刻意的重叠",
+            type: "switch",
+            description: descMultiline`
+              清洗非刻意的时间轴重叠，以免不必要的多行高亮效果
+              两行歌词的重叠小于 100ms，或重叠时长不足下一行时长的 10% 时
+              将上一行歌词的结束时间截断为下一行歌词的开始时间
+            `,
+            keywords: ["AMLL", "歌词优化"],
+            value: computed({
+              get: () => settingStore.amllOptimizeOptions.cleanUnintentionalOverlaps,
+              set: (v) => (settingStore.amllOptimizeOptions.cleanUnintentionalOverlaps = v),
+            }),
+          },
+          {
+            key: "amllTryAdvanceStartTime",
+            label: "尝试提前歌词开始时间",
+            type: "switch",
+            description: descMultiline`
+              尝试让歌词提前最多 1 秒开始
+              若与上一行有重叠，则尝试最多提前 400ms 或上一行时长的 30%
+            `,
+            keywords: ["AMLL", "歌词优化"],
+            value: computed({
+              get: () => settingStore.amllOptimizeOptions.tryAdvanceStartTime,
+              set: (v) => (settingStore.amllOptimizeOptions.tryAdvanceStartTime = v),
+            }),
+          },
+        ],
+      },
+      {
         title: "桌面歌词",
         tags: [{ text: "Beta", type: "warning" }],
         show: isElectron,
