@@ -10,6 +10,7 @@ export default tseslint.config(
       "**/node_modules",
       "**/dist",
       "**/out",
+      "**/coverage",
       "**/.gitignore",
       "**/docs",
       "**/auto-imports.d.ts",

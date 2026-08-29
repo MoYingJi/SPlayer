@@ -33,7 +33,10 @@
     "build:pack": "pnpm build && electron-builder --config electron-builder.config.ts",
     "build:win": "pnpm build:pack --win",
     "build:mac": "pnpm build:pack --mac",
-    "build:linux": "pnpm build:pack --linux"
+    "build:linux": "pnpm build:pack --linux",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -74,7 +77,9 @@
     "@types/sortablejs": "^1.15.9",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-vue": "^6.0.8",
+    "@vitest/coverage-v8": "4.1.11",
     "@vue/devtools-api": "^8.2.1",
+    "@vue/test-utils": "^2.5.0",
     "@vueuse/core": "^14.4.0",
     "@vueuse/integrations": "^14.4.0",
     "ajv": "^8.20.0",
@@ -90,6 +95,7 @@
     "fastify": "^5.12.1",
     "github-markdown-css": "^5.9.0",
     "globals": "^17.11.0",
+    "happy-dom": "^20.11.12",
     "js-cookie": "^3.0.8",
     "localforage": "^1.10.0",
     "lodash-es": "^4.18.1",
@@ -112,6 +118,7 @@
     "vite-plugin-compression": "^0.5.1",
     "vite-plugin-vue-devtools": "^8.2.1",
     "vite-plugin-wasm": "^3.6.0",
+    "vitest": "^4.1.11",
     "vue": "^3.5.41",
     "vue-router": "^5.2.0",
     "vue-tsc": "^3.3.11"

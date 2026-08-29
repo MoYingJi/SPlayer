@@ -92,9 +92,9 @@ export const applyLyricLanguages = (lines: LyricLine[]): void => {
   const allHangulTranslated = hasHangul && hangulTranslatedCount === hangulLineCount;
 
   // CJK 比例启发式标志
-  const allHanUntranslated = hasHan && hanTranslatedCount === hanLineCount;
-  const allKanaUntranslated = hasKana && kanaTranslatedCount === kanaLineCount;
-  const allHangulUntranslated = hasHangul && hangulTranslatedCount === hangulLineCount;
+  const allHanUntranslated = hasHan && hanTranslatedCount === 0;
+  const allKanaUntranslated = hasKana && kanaTranslatedCount === 0;
+  const allHangulUntranslated = hasHangul && hangulTranslatedCount === 0;
   const kanaRatio = hasHan ? kanaLineCount / hanLineCount : Infinity;
   const hangulRatio = hasHan ? hangulLineCount / hanLineCount : Infinity;
   const THRESHOLD = 0.3;
