@@ -412,9 +412,14 @@ export const descMultiline = (strings: TemplateStringsArray, ...values: any[]): 
  * 将 XML 字符串格式化为美观缩进的字符串
  * @param xmlStr 原始 XML 字符串
  * @param indent 缩进字符（默认两个空格）
+ * @param whitespaceSensitiveElements 对于这些元素，保留其内部的空白和换行
  * @throws 当 XML 解析失败时抛出错误
  */
-export function formatXml(xmlStr: string, indent: string = "  "): string {
+export function formatXml(
+  xmlStr: string,
+  indent: string = "  ",
+  whitespaceSensitiveElements: string[] = [],
+): string {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlStr, "text/xml");
 
@@ -425,11 +430,16 @@ export function formatXml(xmlStr: string, indent: string = "  "): string {
   }
 
   // 递归序列化节点
-  function serializeNode(node: Node, level: number): string | null {
+  function serializeNode(node: Node, level: number, preserveWhitespace: boolean): string | null {
     // 文本节点
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim() || "";
-      return text || null; // 忽略空白
+      const text = node.textContent || "";
+      if (preserveWhitespace) {
+        return text;
+      } else {
+        const trimmed = text.trim();
+        return trimmed || null; // 忽略空白
+      }
     }
 
     // 元素节点
@@ -442,13 +452,17 @@ export function formatXml(xmlStr: string, indent: string = "  "): string {
         .map((attr) => ` ${attr.name}="${attr.value}"`)
         .join("");
 
+      // 判断当前元素是否属于空白敏感列表
+      const isSensitive = whitespaceSensitiveElements.includes(tagName);
+      const currentPreserve = preserveWhitespace || isSensitive;
+
       const children = Array.from(element.childNodes);
       const hasElementChild = children.some((child) => child.nodeType === Node.ELEMENT_NODE);
 
       // 若无子元素，输出单行 <tag>text</tag>
       if (!hasElementChild) {
-        const textContent = element.textContent?.trim() || "";
-        return `<${tagName}${attrs}>${textContent}</${tagName}>`;
+        const textContent = element.textContent || "";
+        return `<${tagName}${attrs}>${currentPreserve ? textContent : textContent.trim()}</${tagName}>`;
       }
 
       // 有子元素，递归处理
@@ -456,7 +470,11 @@ export function formatXml(xmlStr: string, indent: string = "  "): string {
       const childIndent = "\n" + indent.repeat(level + 1);
 
       for (const child of children) {
-        const sub = serializeNode(child, level + 1);
+        const sub = serializeNode(
+          child,
+          level + 1,
+          currentPreserve || whitespaceSensitiveElements.includes(tagName),
+        );
         if (sub !== null) {
           result += childIndent + sub;
         }
@@ -471,7 +489,7 @@ export function formatXml(xmlStr: string, indent: string = "  "): string {
   }
 
   const root = xmlDoc.documentElement;
-  return serializeNode(root, 0) || "";
+  return serializeNode(root, 0, whitespaceSensitiveElements.includes(root.tagName)) || "";
 }
 
 /**
@@ -480,4 +498,20 @@ export function formatXml(xmlStr: string, indent: string = "  "): string {
  */
 export function compressXml(xmlStr: string): string {
   return xmlStr.replace(/>\s+</g, "><").trim();
+}
+
+/**
+ * 将 span 间的空格移入 span 以便带缩进美观展示
+ * @param content TTML 内容
+ */
+export function spaceFormattableTTML(content: string): string {
+  return content.replaceAll("</span> <span", " </span><span");
+}
+
+/**
+ * 将经过 `spaceFormattableTTML` 处理的 TTML 调整回规范格式
+ * @param content TTML 内容
+ */
+export function spaceSpecifiedTTML(content: string): string {
+  return content.replaceAll(" </span><span", "</span> <span");
 }

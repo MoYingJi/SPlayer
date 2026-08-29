@@ -47,7 +47,7 @@ import { parseTTML } from "@applemusic-like-lyrics/lyric";
 import { NScrollbar } from "naive-ui";
 import { useMusicStore, useSettingStore } from "@/stores";
 import { useLyricManager } from "@/core/player/LyricManager";
-import { compressXml, formatXml } from "@/utils/format";
+import { compressXml, formatXml, spaceFormattableTTML, spaceSpecifiedTTML } from "@/utils/format";
 import {
   PLAIN_TEXT_GUIDE,
   lyricLinesToPlainText,
@@ -113,10 +113,10 @@ const modes: EditMode[] = [
     label: "美观 TTML",
     toEditor: (lines) => {
       const ttml = lyricLinesToTTML(lines);
-      return formatXml(ttml, "    ");
+      return formatXml(spaceFormattableTTML(ttml), "    ", ["span"]);
     },
     fromEditor: (content) => {
-      return parseTTML(compressXml(content)).lines;
+      return parseTTML(spaceSpecifiedTTML(compressXml(content))).lines;
     },
     warning: null,
   },
