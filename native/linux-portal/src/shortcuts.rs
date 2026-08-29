@@ -13,17 +13,14 @@ use std::{
 use ashpd::desktop::{
     CreateSessionOptions, Session,
     global_shortcuts::{
-        Activated, BindShortcutsOptions, ConfigureShortcutsOptions, GlobalShortcuts,
-        NewShortcut,
+        Activated, BindShortcutsOptions, ConfigureShortcutsOptions, GlobalShortcuts, NewShortcut,
     },
 };
 use futures_util::{Stream, StreamExt};
 use napi::{
     Status,
     bindgen_prelude::{Function, Unknown},
-    threadsafe_function::{
-        ThreadsafeFunction, ThreadsafeFunctionCallMode, UnknownReturnValue,
-    },
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode, UnknownReturnValue},
 };
 use napi_derive::napi;
 use tokio::{
@@ -108,7 +105,10 @@ impl NapiGlobalShortcuts {
     /// 创建全局快捷键管理器
     ///
     /// 会启动一个后台线程运行 D-Bus 事件循环，`bind` 之后快捷键激活时通过回调通知
-    #[napi(constructor, ts_args_type = "callback: (event: ShortcutActivatedEvent) => void")]
+    #[napi(
+        constructor,
+        ts_args_type = "callback: (event: ShortcutActivatedEvent) => void"
+    )]
     #[allow(clippy::needless_pass_by_value)]
     pub fn new(callback: Function<Unknown<'static>, UnknownReturnValue>) -> napi::Result<Self> {
         let handler = callback
@@ -269,7 +269,12 @@ async fn handle_command(
         }
         Command::Bind { shortcuts, reply } => {
             let result = bind_shortcuts(
-                portal, session, signal_task, registered_ids, evt_tx, &shortcuts,
+                portal,
+                session,
+                signal_task,
+                registered_ids,
+                evt_tx,
+                &shortcuts,
             )
             .await;
             let _ = reply.send(result);
@@ -363,16 +368,23 @@ async fn bind_shortcuts(
             .await
             .map_err(|_| "订阅 Activated 信号超时".to_string())?
             .map_err(|e| format!("订阅 Activated 信号失败: {e}"))?;
-        *signal_task = Some(spawn_signal_task(stream, registered_ids.clone(), evt_tx.clone()));
+        *signal_task = Some(spawn_signal_task(
+            stream,
+            registered_ids.clone(),
+            evt_tx.clone(),
+        ));
         *portal = Some(gs);
     }
     let gs = portal.as_ref().ok_or("portal 未创建")?;
 
     // 创建全局快捷键会话
-    let new_session = tokio::time::timeout(CALL_TIMEOUT, gs.create_session(CreateSessionOptions::default()))
-        .await
-        .map_err(|_| "创建会话超时".to_string())?
-        .map_err(|e| format!("创建会话失败: {e}"))?;
+    let new_session = tokio::time::timeout(
+        CALL_TIMEOUT,
+        gs.create_session(CreateSessionOptions::default()),
+    )
+    .await
+    .map_err(|_| "创建会话超时".to_string())?
+    .map_err(|e| format!("创建会话失败: {e}"))?;
 
     let requested_ids: Vec<String> = shortcuts.iter().map(|s| s.id.clone()).collect();
 
@@ -391,7 +403,12 @@ async fn bind_shortcuts(
     // 发起绑定请求并等待用户在系统弹窗中确认
     let request = tokio::time::timeout(
         BIND_WAIT_TIMEOUT,
-        gs.bind_shortcuts(&new_session, &new_shortcuts, None, BindShortcutsOptions::default()),
+        gs.bind_shortcuts(
+            &new_session,
+            &new_shortcuts,
+            None,
+            BindShortcutsOptions::default(),
+        ),
     )
     .await
     .map_err(|_| "发起绑定请求超时".to_string())?
@@ -550,7 +567,10 @@ mod tests {
             electron_to_xdg("CmdOrCtrl+Shift+Left").as_deref(),
             Some("CTRL+SHIFT+LEFT")
         );
-        assert_eq!(electron_to_xdg("Super+Shift+Z").as_deref(), Some("SUPER+SHIFT+Z"));
+        assert_eq!(
+            electron_to_xdg("Super+Shift+Z").as_deref(),
+            Some("SUPER+SHIFT+Z")
+        );
     }
 
     #[test]

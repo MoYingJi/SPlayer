@@ -48,7 +48,7 @@ pub trait SystemMediaControls: Send + Sync {
 
     /// 更新播放速率
     fn update_playback_rate(&self, rate: f64);
-    
+
     /// 更新音量
     fn update_volume(&self, volume: f64);
 

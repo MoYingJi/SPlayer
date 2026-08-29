@@ -236,7 +236,7 @@ impl DownloadTask {
                 referer,
                 on_progress,
             )
-                .await?;
+            .await?;
         } else {
             println!("[Download] Mode: Simple Stream");
             download_simple_stream(
@@ -248,7 +248,7 @@ impl DownloadTask {
                 referer,
                 on_progress,
             )
-                .await?;
+            .await?;
         }
 
         if let Some(meta) = metadata {
@@ -375,7 +375,7 @@ async fn download_simple_stream(
         file.flush().await.context("Flush failed")?;
         Ok(())
     }
-        .await;
+    .await;
 
     if let Err(e) = process_result {
         drop(file);
@@ -449,7 +449,7 @@ async fn download_range_stream(
         file.flush().await.context("Flush failed")?;
         Ok(())
     }
-        .await;
+    .await;
 
     if let Err(e) = process_result {
         drop(file);
@@ -543,7 +543,7 @@ async fn fetch_cover(client: &reqwest::Client, meta: &SongMetadata) -> Option<by
         std::time::Duration::from_secs(TIMEOUT_SECS),
         client.get(cover_url).send(),
     )
-        .await
+    .await
     {
         Ok(Ok(resp)) => resp,
         Ok(Err(e)) => {
