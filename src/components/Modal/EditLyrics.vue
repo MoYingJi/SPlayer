@@ -5,16 +5,28 @@
     </n-alert>
     <n-tabs :value="activeMode" type="line" @update:value="handleModeChange" animated>
       <template #suffix>
-        <n-tooltip v-if="currentMode.guide" trigger="hover">
-          <template #trigger>
-            <n-button quaternary circle size="small" @click="openGuide">
-              <template #icon>
-                <SvgIcon name="Help" />
-              </template>
-            </n-button>
-          </template>
-          查看 {{ currentMode.label }} 模式的完整指引
-        </n-tooltip>
+        <n-flex :size="4" align="center">
+          <n-tooltip v-if="currentMode.normalizable" trigger="hover">
+            <template #trigger>
+              <n-button quaternary circle size="small" @click="handleNormalize">
+                <template #icon>
+                  <SvgIcon name="AutoFix" />
+                </template>
+              </n-button>
+            </template>
+            按当前内容重新生成规范格式
+          </n-tooltip>
+          <n-tooltip v-if="currentMode.guide" trigger="hover">
+            <template #trigger>
+              <n-button quaternary circle size="small" @click="openGuide">
+                <template #icon>
+                  <SvgIcon name="Help" />
+                </template>
+              </n-button>
+            </template>
+            查看 {{ currentMode.label }} 模式的完整指引
+          </n-tooltip>
+        </n-flex>
       </template>
       <n-tab-pane v-for="mode in modes" :key="mode.key" :name="mode.key" :tab="mode.label">
         <n-input
@@ -75,6 +87,8 @@ interface EditMode {
   warning: string | null;
   /** 完整格式指引，存在时在标签栏右侧显示查看按钮 */
   guide?: string;
+  /** 是否支持「整理」，即按当前内容重新生成规范格式 */
+  normalizable?: boolean;
 }
 
 const props = defineProps<{
@@ -142,6 +156,7 @@ const modes: EditMode[] = [
     fromEditor: (content, baseLines) => plainTextToLyricLines(content, baseLines),
     warning: null,
     guide: PLAIN_TEXT_GUIDE,
+    normalizable: true,
   },
 ];
 
@@ -172,6 +187,21 @@ const resolveEditorLines = (useChangedValue: boolean = hasChanges.value): LyricL
   useChangedValue
     ? currentMode.value.fromEditor(editorContent.value, editorBaseLines.value)
     : editorBaseLines.value;
+
+// 整理：按当前内容重新生成规范格式，同时把编辑结果暂存为新的基准数据
+// 必须同步更新 editorBaseLines，否则内容描述的行与基准数据不再对应，保存时会直接报错
+const handleNormalize = () => {
+  const mode = currentMode.value;
+  if (!mode.normalizable) return;
+  try {
+    const lines = resolveEditorLines();
+    editorContent.value = mode.toEditor(lines);
+    editorBaseLines.value = lines;
+    lastSavedContent.value = editorContent.value;
+  } catch (e) {
+    window.$message.error(`内容格式错误，无法整理：${(e as Error)?.message ?? e}`);
+  }
+};
 
 // 查看当前模式的完整指引
 const openGuide = () => {
