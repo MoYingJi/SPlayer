@@ -43,24 +43,28 @@ struct ActivityData {
     current_time: f64,
     cached_cover_url: String,
     cached_song_url: String,
+    cached_author_text: String,
 }
 
 impl ActivityData {
     fn from_metadata(metadata: MetadataPayload) -> Self {
         let cached_cover_url = Self::process_cover_url(metadata.original_cover_url.as_deref());
         let cached_song_url = Self::process_song_url(metadata.ncm_id);
+        let cached_author_text = metadata.author_text();
         Self {
             metadata,
             status: PlaybackStatus::Paused,
             current_time: 0.0,
             cached_cover_url,
             cached_song_url,
+            cached_author_text,
         }
     }
 
     fn update_metadata(&mut self, metadata: MetadataPayload) {
         self.cached_cover_url = Self::process_cover_url(metadata.original_cover_url.as_deref());
         self.cached_song_url = Self::process_song_url(metadata.ncm_id);
+        self.cached_author_text = metadata.author_text();
         self.metadata = metadata;
         self.current_time = 0.0;
     }
@@ -259,7 +263,7 @@ impl RpcWorker {
 
         Activity::new()
             .details(&data.metadata.song_name)
-            .state(&data.metadata.author_name)
+            .state(&data.cached_author_text)
             .activity_type(ActivityType::Listening)
             .assets(assets)
             .buttons(buttons)

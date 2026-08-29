@@ -392,7 +392,7 @@ impl SystemMediaControls for MacosImpl {
     fn update_metadata(&self, payload: MetadataPayload) {
         debug!(
             title = %payload.song_name,
-            artist = %payload.author_name,
+            artist = ?payload.author_names,
             album = %payload.album_name,
             ncm_id = ?payload.ncm_id,
             "正在更新 macOS NowPlayingInfo 元数据"
@@ -413,7 +413,7 @@ impl SystemMediaControls for MacosImpl {
                 ProtocolObject::from_ref(MPMediaItemPropertyTitle),
             );
             info.setObject_forKey(
-                &NSString::from_str(&payload.author_name),
+                &NSString::from_str(&payload.author_text()),
                 ProtocolObject::from_ref(MPMediaItemPropertyArtist),
             );
             info.setObject_forKey(

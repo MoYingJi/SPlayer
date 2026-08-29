@@ -73,7 +73,12 @@ export declare function initialize(logDir: string): void
 
 export interface MetadataParam {
   songName: string
-  authorName: string
+  /**
+   * 歌手列表
+   *
+   * MPRIS 的 `xesam:artist` 支持多值，其余平台由原生层内部拼接为单个字符串
+   */
+  authorNames: Array<string>
   albumName: string
   /** 封面的原始字节数据，适用于除 Discord RPC 之外的其他平台 */
   coverData?: Buffer

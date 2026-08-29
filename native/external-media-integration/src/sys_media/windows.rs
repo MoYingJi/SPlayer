@@ -328,14 +328,14 @@ impl SystemMediaControls for WindowsImpl {
 
         debug!(
             title = %payload.song_name,
-            artist = %payload.author_name,
+            artist = ?payload.author_names,
             album = %payload.album_name,
             ncm_id = ?payload.ncm_id,
             "正在更新 SMTC 歌曲元数据"
         );
 
         let song_name = payload.song_name.clone();
-        let author_name = payload.author_name.clone();
+        let author_name = payload.author_text();
         let album_name = payload.album_name.clone();
         let ncm_id = payload.ncm_id;
         let cover_data = payload.cover_data;

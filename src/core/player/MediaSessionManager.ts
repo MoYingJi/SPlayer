@@ -190,7 +190,7 @@ class MediaSessionManager {
         }
         sendMediaMetadata({
           songName: metadata.title,
-          authorName: metadata.artist,
+          authorNames: metadata.artists,
           albumName: metadata.album,
           originalCoverUrl: metadata.coverUrl,
           coverData: coverBuffer as Buffer,
@@ -213,7 +213,7 @@ class MediaSessionManager {
     if ("mediaSession" in navigator) {
       navigator.mediaSession.metadata = new window.MediaMetadata({
         title: metadata.title,
-        artist: metadata.artist,
+        artist: metadata.artists.join("/"),
         album: metadata.album,
         artwork: this.buildArtwork(musicStore),
       });
@@ -225,20 +225,22 @@ class MediaSessionManager {
    */
   private buildMetadata(song: ReturnType<typeof getPlaySongData>): {
     title: string;
-    artist: string;
+    artists: string[];
     album: string;
     coverUrl: string;
   } {
     const isRadio = song!.type === "radio";
     const musicStore = useMusicStore();
 
+    const artists = isRadio
+      ? [song!.dj?.creator || "未知播客"]
+      : Array.isArray(song!.artists)
+        ? song!.artists.map((a) => a.name)
+        : [String(song!.artists)];
+
     return {
       title: song!.name,
-      artist: isRadio
-        ? song!.dj?.creator || "未知播客"
-        : Array.isArray(song!.artists)
-          ? song!.artists.map((a) => a.name).join("/")
-          : String(song!.artists),
+      artists: artists.filter(Boolean),
       album: isRadio
         ? song!.dj?.name || "未知播客"
         : typeof song!.album === "object"

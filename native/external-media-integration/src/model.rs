@@ -64,10 +64,13 @@ impl SystemMediaEvent {
     }
 }
 
+/// 多个歌手拼接时使用的分隔符
+const AUTHOR_SEPARATOR: &str = "/";
+
 #[derive(Clone, PartialEq)]
 pub struct MetadataPayload {
     pub song_name: String,
-    pub author_name: String,
+    pub author_names: Vec<String>,
     pub album_name: String,
 
     pub cover_data: Option<Vec<u8>>,
@@ -79,11 +82,18 @@ pub struct MetadataPayload {
     pub duration: Option<f64>,
 }
 
+impl MetadataPayload {
+    /// 拼接后的歌手文本，供只接受单一字符串的平台（SMTC / MPNowPlaying / Discord RPC）使用
+    pub fn author_text(&self) -> String {
+        self.author_names.join(AUTHOR_SEPARATOR)
+    }
+}
+
 impl fmt::Debug for MetadataPayload {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("MetadataPayload")
             .field("song_name", &self.song_name)
-            .field("author_name", &self.author_name)
+            .field("author_names", &self.author_names)
             .field("album_name", &self.album_name)
             .field(
                 "cover_data",
@@ -102,7 +112,12 @@ impl fmt::Debug for MetadataPayload {
 #[napi(object)]
 pub struct MetadataParam {
     pub song_name: String,
-    pub author_name: String,
+
+    /// 歌手列表
+    ///
+    /// MPRIS 的 `xesam:artist` 支持多值，其余平台由原生层内部拼接为单个字符串
+    pub author_names: Vec<String>,
+
     pub album_name: String,
 
     /// 封面的原始字节数据，适用于除 Discord RPC 之外的其他平台
@@ -132,7 +147,7 @@ impl From<MetadataParam> for MetadataPayload {
     fn from(param: MetadataParam) -> Self {
         Self {
             song_name: param.song_name,
-            author_name: param.author_name,
+            author_names: param.author_names,
             album_name: param.album_name,
             cover_data: param.cover_data.map(|b| b.to_vec()),
             original_cover_url: param.original_cover_url,

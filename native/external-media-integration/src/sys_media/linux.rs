@@ -218,7 +218,7 @@ async fn process_metadata_update(
 
     let mut mb = Metadata::builder()
         .title(payload.song_name)
-        .artist([payload.author_name])
+        .artist(payload.author_names)
         .album(payload.album_name);
 
     let track_id_str = payload.ncm_id.map_or_else(
