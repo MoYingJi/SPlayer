@@ -97,7 +97,7 @@ export const applyLyricLanguages = (lines: LyricLine[]): void => {
   const allHangulUntranslated = hasHangul && hangulTranslatedCount === 0;
   const kanaRatio = hasHan ? kanaLineCount / hanLineCount : Infinity;
   const hangulRatio = hasHan ? hangulLineCount / hanLineCount : Infinity;
-  const THRESHOLD = 0.3;
+  const THRESHOLD = 0.37;
 
   // 判断纯汉字行的语言
   const getPureHanLineLang = (line: LyricLine): LyricLanguageCJK => {
