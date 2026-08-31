@@ -40,7 +40,7 @@
       <n-flex justify="space-between" align="center" class="footer-actions">
         <n-flex>
           <n-button @click="handleCopyMore"> 复制更多信息 </n-button>
-          <n-button @click="handleEditLyrics"> 优化歌词 </n-button>
+          <n-button v-if="!musicStore.playSong.path" @click="handleEditLyrics"> 优化歌词 </n-button>
         </n-flex>
         <n-flex>
           <n-button @click="selectAll">
