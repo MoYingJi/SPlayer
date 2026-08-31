@@ -275,7 +275,9 @@ const switchMode = (targetKey: string, keepContent: boolean) => {
 const handleSave = async () => {
   try {
     const lines = resolveEditorLines(true);
-    const ttml = lines.length ? lyricLinesToTTML(lines) : "";
+    const ttml = lines.length
+      ? lyricLinesToTTML(lines, [["ncmMusicId", [props.songId.toString()]]])
+      : "";
     const success = await window.electron.ipcRenderer.invoke(
       "write-local-lyric",
       settingStore.editLyricSavePath,
