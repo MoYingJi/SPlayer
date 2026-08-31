@@ -505,7 +505,9 @@ export function compressXml(xmlStr: string): string {
  * @param content TTML 内容
  */
 export function spaceFormattableTTML(content: string): string {
-  return content.replaceAll("</span> <span", " </span><span");
+  return content
+    .replaceAll(/<span([^>]*?)\/>/g, "<span$1></span>")
+    .replaceAll("</span> <span", " </span><span");
 }
 
 /**
