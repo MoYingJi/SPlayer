@@ -28,7 +28,7 @@ export const exportSongsToCsv = (songs: SongType[], filename: string = "splayer-
   ]);
   // 拼接 CSV 内容，添加 BOM 以支持 Excel 中文显示
   const csvContent =
-    "\uFEFF" + [header, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\n");
+    "\uFEFF" + [header, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\n") + "\n";
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
