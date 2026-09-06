@@ -12,12 +12,11 @@ allowBuilds:
   "@applemusic-like-lyrics/lyric": true
   "@parcel/watcher": true
   better-sqlite3: true
-  core-js: true
   electron: true
   electron-winstaller: true
   esbuild: true
-  sharp: true
   vue-demi: true
+  core-js: false # 广告
   register-scheme: false
   wasm-pack: false
 
