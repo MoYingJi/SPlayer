@@ -1,6 +1,6 @@
 import vue from "@vitejs/plugin-vue";
 import { execSync } from "child_process";
-import { defineConfig, loadEnv } from "electron-vite";
+import { defineConfig, loadEnv, UserConfig } from "electron-vite";
 import { resolve } from "path";
 import AutoImport from "unplugin-auto-import/vite";
 import { NaiveUiResolver } from "unplugin-vue-components/resolvers";
@@ -49,12 +49,12 @@ export default defineConfig(({ mode }) => {
   const webPort: number = Number(getEnv("VITE_WEB_PORT") || 14558);
   const servePort: number = Number(getEnv("VITE_SERVER_PORT") || 25884);
   // 返回配置
-  return {
+  const config: UserConfig = {
     // 主进程
     main: {
+      publicDir: resolve(__dirname, "public"),
       build: {
-        publicDir: resolve(__dirname, "public"),
-        rollupOptions: {
+        rolldownOptions: {
           input: {
             index: resolve(__dirname, "electron/main/index.ts"),
             "workers/audio-analysis.worker": resolve(
@@ -133,10 +133,9 @@ export default defineConfig(({ mode }) => {
       preview: {
         port: webPort,
       },
+      publicDir: resolve(__dirname, "public"),
       build: {
-        minify: "terser",
-        publicDir: resolve(__dirname, "public"),
-        rollupOptions: {
+        rolldownOptions: {
           input: {
             index: resolve(__dirname, "index.html"),
             loading: resolve(__dirname, "web/loading/index.html"),
@@ -144,18 +143,26 @@ export default defineConfig(({ mode }) => {
           },
           external: ["external-media-integration.node"],
           output: {
-            manualChunks: {
-              stores: ["src/stores/data.ts", "src/stores/index.ts"],
+            minify: {
+              compress: {
+                treeshake: {
+                  manualPureFunctions: ["console.log"],
+                },
+              },
             },
-          },
-        },
-        terserOptions: {
-          compress: {
-            pure_funcs: ["console.log"],
+            codeSplitting: {
+              groups: [
+                {
+                  name: "stores",
+                  test: (id) => ["src/stores/data.ts", "src/stores/index.ts"].includes(id),
+                },
+              ],
+            },
           },
         },
         sourcemap: false,
       },
     },
   };
+  return config;
 });
