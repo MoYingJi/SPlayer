@@ -342,8 +342,8 @@ export const openSetting = async (type: SettingType = "general", scrollTo?: stri
     preset: "card",
     transformOrigin: "center",
     autoFocus: false,
-    maskClosable: false,
-    closeOnEsc: false,
+    // maskClosable: false,
+    // closeOnEsc: false,
     bordered: false,
     class: "main-setting",
     content: () => {
