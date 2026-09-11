@@ -39,6 +39,8 @@ source=(
 )
 sha256sums=('SKIP' 'SKIP')
 
+options=(!lto !debug)
+
 pkgver() {
     cd "${srcdir}/splayer"
     set -o pipefail
