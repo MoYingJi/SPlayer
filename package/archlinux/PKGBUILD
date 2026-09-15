@@ -4,7 +4,7 @@
 
 pkgname=splayer-legacy-continue-git
 pkgver=r1926.75ac143
-_electronversion=43
+_electronversion=44
 pkgrel=1
 pkgdesc="某音乐播放器的私房菜 (Use system-wide electron) Fork of SPlayer"
 arch=('x86_64' 'aarch64')

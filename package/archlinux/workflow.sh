@@ -18,10 +18,12 @@ echo ::endgroup::
 
 echo ::group:: Dependency Handling
 
-# archlinuxarm 没有 electron43 包，手动安装 AUR 的 electron43-bin
-if ! pacman -Si electron43 >/dev/null 2>&1; then
-    $sudo git clone https://aur.archlinux.org/electron43-bin.git electron43-bin
-    cd electron43-bin || { echo "Failed to enter directory"; exit 1; }
+electron_ver=44
+
+# archlinuxarm 没有 electronXX 包，手动安装 AUR 的 electronXX-bin
+if ! pacman -Si electron$electron_ver >/dev/null 2>&1; then
+    $sudo git clone https://aur.archlinux.org/electron$electron_ver-bin.git electron$electron_ver-bin
+    cd electron$electron_ver-bin || { echo "Failed to enter directory"; exit 1; }
     $sudo env PACKAGER="$PACKAGER" makepkg --syncdeps --install --noconfirm
     cd - || { echo "Failed to return to previous directory"; exit 1; }
 fi
