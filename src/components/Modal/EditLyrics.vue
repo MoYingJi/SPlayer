@@ -127,7 +127,10 @@ const modes: EditMode[] = [
     label: "美观 TTML",
     toEditor: (lines) => {
       const ttml = lyricLinesToTTML(lines);
-      return formatXml(spaceFormattableTTML(ttml), "    ", ["span"]);
+      return formatXml(spaceFormattableTTML(ttml), {
+        indent: 4,
+        whitespaceSensitiveElements: ["span"],
+      });
     },
     fromEditor: (content) => {
       return parseTTML(spaceSpecifiedTTML(compressXml(content))).lines;

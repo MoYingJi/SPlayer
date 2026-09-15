@@ -409,17 +409,37 @@ export const descMultiline = (strings: TemplateStringsArray, ...values: any[]): 
 };
 
 /**
+ * 转义文本内容：& < > 必须转义；其余字符可保留。
+ * 注意不要重复转义已有的实体——DOMParser 已经把 &amp; 解码成 & 了，
+ * 所以这里见到的都是"裸字符"，无条件转义是安全的。
+ */
+function escapeText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** 转义属性值：在文本转义基础上，再处理引号。统一用双引号输出。 */
+function escapeAttr(s: string): string {
+  return escapeText(s).replace(/"/g, "&quot;");
+}
+
+/**
  * 将 XML 字符串格式化为美观缩进的字符串
  * @param xmlStr 原始 XML 字符串
- * @param indent 缩进字符（默认两个空格）
- * @param whitespaceSensitiveElements 对于这些元素，保留其内部的空白和换行
+ * @param options 选项
+ * @param options.indent 缩进字符（默认两个空格）
+ * @param options.whitespaceSensitiveElements 对于这些元素，保留其内部的空白和换行
  * @throws 当 XML 解析失败时抛出错误
  */
 export function formatXml(
   xmlStr: string,
-  indent: string = "  ",
-  whitespaceSensitiveElements: string[] = [],
+  options: Partial<{
+    indent: string | number;
+    newline: boolean;
+    whitespaceSensitiveElements: string[];
+  }> = {},
 ): string {
+  const { indent = 2, newline = true, whitespaceSensitiveElements = [] } = options;
+
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlStr, "text/xml");
 
@@ -429,17 +449,22 @@ export function formatXml(
     throw new Error(`Invalid XML: ${errorNode.textContent}`);
   }
 
+  // 生成缩进字符串
+  const indentStr = typeof indent === "number" ? " ".repeat(indent) : indent;
+  function lineSep(level: number): string {
+    return newline ? "\n" + indentStr.repeat(level) : "";
+  }
+
   // 递归序列化节点
   function serializeNode(node: Node, level: number, preserveWhitespace: boolean): string | null {
     // 文本节点
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent || "";
       if (preserveWhitespace) {
-        return text;
-      } else {
-        const trimmed = text.trim();
-        return trimmed || null; // 忽略空白
+        return escapeText(text);
       }
+      const trimmed = text.trim();
+      return trimmed ? escapeText(trimmed) : null; // 忽略空白
     }
 
     // 元素节点
@@ -449,7 +474,7 @@ export function formatXml(
 
       // 拼接属性
       const attrs = Array.from(element.attributes)
-        .map((attr) => ` ${attr.name}="${attr.value}"`)
+        .map((attr) => ` ${attr.name}="${escapeAttr(attr.value)}"`)
         .join("");
 
       // 判断当前元素是否属于空白敏感列表
@@ -461,30 +486,44 @@ export function formatXml(
 
       // 若无子元素，输出单行 <tag>text</tag>
       if (!hasElementChild) {
-        const textContent = element.textContent || "";
-        return `<${tagName}${attrs}>${currentPreserve ? textContent : textContent.trim()}</${tagName}>`;
+        // 无子元素：把文本节点的内容拼起来再转义。
+        // 不要用 element.textContent，虽然等价，但显式处理 CDATA 更清晰。
+        let text = children
+          .filter((c) => c.nodeType === Node.TEXT_NODE || c.nodeType === Node.CDATA_SECTION_NODE)
+          .map((c) => c.textContent || "")
+          .join("");
+        if (!currentPreserve) {
+          text = text.trim();
+        }
+        return `<${tagName}${attrs}>${escapeText(text)}</${tagName}>`;
       }
 
       // 有子元素，递归处理
       let result = `<${tagName}${attrs}>`;
-      const childIndent = "\n" + indent.repeat(level + 1);
+      const childIndent = lineSep(level + 1);
 
       for (const child of children) {
-        const sub = serializeNode(
-          child,
-          level + 1,
-          currentPreserve || whitespaceSensitiveElements.includes(tagName),
-        );
+        const sub = serializeNode(child, level + 1, currentPreserve);
         if (sub !== null) {
           result += childIndent + sub;
         }
       }
 
-      result += "\n" + indent.repeat(level) + `</${tagName}>`;
+      result += lineSep(level) + `</${tagName}>`;
       return result;
     }
 
-    // 其他节点（注释、处理指令等）暂不处理
+    // 注释节点
+    if (node.nodeType === Node.COMMENT_NODE) {
+      // XML 注释里不能出现 "--"
+      return `<!--${(node.textContent || "").replace(/--/g, "- -")}-->`;
+    }
+    if (node.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
+      const pi = node as ProcessingInstruction;
+      return `<?${pi.target} ${pi.data}?>`;
+    }
+
+    // 其他节点暂不处理
     return null;
   }
 
