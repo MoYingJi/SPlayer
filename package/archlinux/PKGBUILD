@@ -14,11 +14,13 @@ conflicts=('splayer')
 provides=("splayer=${pkgver%.r*}")
 depends=(
     "electron${_electronversion}"
+    'hicolor-icon-theme'
     'openssl'
-    'dbus'
     'fontconfig'
 )
 optdepends=(
+    'xdg-utils: 打开外部链接'
+    'dbus: MPRIS 媒体控制支持'
     'mpv: MPV 播放引擎支持'
     'libpulse: 音频捕获 听歌识曲需要'
 )
