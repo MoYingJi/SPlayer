@@ -30,6 +30,12 @@
 
 需要其它包的，可以让我手动触发构建，也可以 fork 后自行在 Actions 触发
 
+> [!NOTE]
+>
+> 我也给 SPlayer-Next 开了私房菜哦 😋，可以来 [MoYingJi:dev-mo](https://github.com/MoYingJi/SPlayer-Next/tree/dev-mo) 吃
+>
+> 这个分支可以算是前沿版，提前 Merge 一些 PR，我的私房菜也都会尽力 PR 到主线
+
 ---
 
 <div align="center">
