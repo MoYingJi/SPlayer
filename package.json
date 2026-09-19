@@ -3,7 +3,7 @@
   "productName": "SPlayer",
   "desktopName": "top.imsyy.SPlayer",
   "version": "3.1.1",
-  "packageManager": "pnpm@12.3.4",
+  "packageManager": "pnpm@12.4.2",
   "description": "A minimalist music player",
   "main": "./out/main/index.js",
   "author": "imsyy",
@@ -55,8 +55,8 @@
     "ws": "^8.21.3"
   },
   "devDependencies": {
-    "@applemusic-like-lyrics/core": "^0.5.2",
-    "@applemusic-like-lyrics/lyric": "^1.0.2",
+    "@applemusic-like-lyrics/core": "^0.6.0",
+    "@applemusic-like-lyrics/lyric": "^1.1.0",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron-toolkit/utils": "^4.0.0",
