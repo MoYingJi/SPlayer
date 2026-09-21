@@ -237,8 +237,9 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .search {
-  position: absolute;
+  position: relative;
   left: 0;
+  flex: 0 0 200px;
   -webkit-app-region: no-drag;
   transition:
     left 0.3s,
@@ -270,6 +271,7 @@ onMounted(() => {
     }
   }
   @media (max-width: 768px) {
+    flex-basis: auto;
     width: calc(100% - 150px);
     .search-input {
       width: 100%;
