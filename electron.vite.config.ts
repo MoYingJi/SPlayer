@@ -89,7 +89,14 @@ export default defineConfig(({ mode }) => {
         __COMMIT_DATE__: JSON.stringify(getGitDate()),
       },
       plugins: [
-        vue(),
+        vue({
+          template: {
+            compilerOptions: {
+              isCustomElement: (tag) =>
+                ["media-i18n", "video-player", "video-neutral-skin"].includes(tag),
+            },
+          },
+        }),
         // mode === "development" && VueDevTools(),
         AutoImport({
           imports: [

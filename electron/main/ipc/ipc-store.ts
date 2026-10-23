@@ -18,7 +18,11 @@ const initStoreIpc = (): void => {
 
   // 设置配置项
   ipcMain.handle("store-set", (_event, key: keyof StoreType, value: unknown) => {
-    store.set(key, value as StoreType[typeof key]);
+    if (value === undefined) {
+      store.delete(key);
+    } else {
+      store.set(key, value as NonNullable<StoreType[typeof key]>);
+    }
     return true;
   });
 

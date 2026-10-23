@@ -217,8 +217,9 @@ const createTrayMenu = (win: BrowserWindow): MenuItemConstructorOptions[] => {
       visible: desktopLyricShow,
       click: () => {
         const store = useStore();
-        store.set("lyric.config", { ...store.get("lyric.config"), isLock: !desktopLyricLock });
         const config = store.get("lyric.config");
+        if (!config) return;
+        store.set("lyric.config", { ...config, isLock: !desktopLyricLock });
         const lyricWin = lyricWindow.getWin();
         if (!lyricWin) return;
         lyricWin.webContents.send("desktop-lyric:update-option", config);

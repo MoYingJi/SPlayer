@@ -30,9 +30,21 @@
     </Transition>
     <!-- 视频播放器 -->
     <div class="player" v-visible>
-      <Transition name="fade" mode="out-in">
-        <video :key="videoData?.id" ref="videoRef" />
-      </Transition>
+      <media-i18n lang="zh-CN">
+        <video-player :poster="videoData?.cover">
+          <video-neutral-skin class="skin">
+            <video ref="videoRef" autoplay playsinline @playing="player.pause()" />
+          </video-neutral-skin>
+        </video-player>
+      </media-i18n>
+      <n-select
+        v-if="qualityOptions.length > 1"
+        v-model:value="selectedQuality"
+        class="quality-selector"
+        size="small"
+        :options="qualityOptions"
+        @update:value="changeQuality"
+      />
     </div>
     <!-- 菜单 -->
     <Transition name="fade" mode="out-in">
@@ -140,9 +152,9 @@ import { isArray, isEmpty } from "lodash-es";
 import { formatNumber } from "@/utils/helper";
 import { getComment } from "@/api/comment";
 import { usePlayerController } from "@/core/player/PlayerController";
-// Plyr
-import Plyr from "plyr";
-import "plyr/dist/plyr.css";
+import "@videojs/html/i18n";
+import "@videojs/html/video/player";
+import "@videojs/html/video/neutral-skin";
 import { formatTimestamp } from "@/utils/time";
 
 const router = useRouter();
@@ -162,7 +174,8 @@ const videoType = computed<"video" | "mv">(
 // 视频数据
 const videoRef = ref<HTMLVideoElement | null>(null);
 const videoData = ref<CoverType | null>(null);
-const videoPlayer = ref<Plyr | null>(null);
+const videoSources = ref<VideoSource[]>([]);
+const selectedQuality = ref<number | null>(null);
 
 // 评论数据
 const commentLoading = ref<boolean>(true);
@@ -177,62 +190,53 @@ const artistData = computed(
   () => (isArray(videoData.value?.artists) && videoData.value?.artists?.[0]) || null,
 );
 
-// 播放器配置
-const playerOptions: Plyr.Options = {
-  controls: [
-    "play-large",
-    "play",
-    "progress",
-    "current-time",
-    "mute",
-    "volume",
-    "captions",
-    "settings",
-    "airplay",
-    "pip",
-    "fullscreen",
-  ],
-  settings: ["captions", "quality", "speed"],
-  ratio: "16:9",
-  invertTime: false,
-  autoplay: true,
-  quality: {
-    default: 1080,
-    options: [1080, 720, 480, 240],
-  },
-  i18n: {
-    play: "播放",
-    pause: "暂停",
-    speed: "速度",
-    settings: "设置",
-    normal: "正常",
-    quality: "画质",
-    pip: "画中画",
-    enterFullscreen: "开启全屏",
-    exitFullscreen: "退出全屏",
-    mute: "音量",
-    unmute: "静音",
-  },
-  tooltips: {
-    controls: true,
-  },
+type VideoSource = {
+  quality: number;
+  src: string;
 };
 
-// 初始化播放器
-const initPlayer = () => {
-  videoData.value = null;
-  videoPlayer.value?.destroy();
-  if (videoRef.value) videoPlayer.value = new Plyr(videoRef.value, playerOptions);
-  // 播放器事件
-  videoPlayer.value?.on("playing", () => {
-    player.pause();
-  });
+const qualityOptions = computed(() =>
+  videoSources.value.map(({ quality }) => ({
+    label: `${quality}P`,
+    value: quality,
+  })),
+);
+
+const setVideoSource = (source: VideoSource, currentTime = 0, shouldPlay = true) => {
+  const media = videoRef.value;
+  if (!media) return;
+
+  media.src = source.src;
+  media.load();
+  media.addEventListener(
+    "loadedmetadata",
+    () => {
+      if (Number.isFinite(currentTime) && currentTime > 0) {
+        media.currentTime = Math.min(currentTime, media.duration || currentTime);
+      }
+      if (shouldPlay) {
+        void media.play().catch((error: unknown) => {
+          console.error("视频自动播放失败：", error);
+        });
+      }
+    },
+    { once: true },
+  );
+};
+
+const changeQuality = (quality: number) => {
+  const source = videoSources.value.find((item) => item.quality === quality);
+  const media = videoRef.value;
+  if (!source || !media) return;
+
+  selectedQuality.value = quality;
+  setVideoSource(source, media.currentTime, !media.paused);
 };
 
 // 获取视频数据
 const getVideoData = async (id: number, type: "mv" | "video") => {
   try {
-    if (!id || !videoPlayer.value) return;
+    if (!id) return;
     // 获取视频详情
     const detail = await videoDetail(id, type);
     const detailInfo = await videoDetailInfo(id, type);
@@ -244,27 +248,31 @@ const getVideoData = async (id: number, type: "mv" | "video") => {
       window.$message.error("播放地址获取失败");
       return;
     }
-    const requests = brs.map(async (v: any) => {
+    const requests = brs.map(async ({ br }: { br: number }): Promise<VideoSource | null> => {
       try {
-        const result = await videoUrl(id, type, v.br);
+        const result = await videoUrl(id, type, br);
+        const quality = Number(result.data.r);
+        if (!result.data.url || !Number.isFinite(quality) || quality <= 0) return null;
         return {
           src: result.data.url.replace(/^http:/, "https:"),
-          type: "video/mp4",
-          size: result.data.r,
+          quality,
         };
       } catch (error) {
         console.error("视频地址加载失败：", error);
         return null;
       }
     });
-    const sources = (await Promise.all(requests)).filter((source) => source !== null);
-    // 更改播放地址
-    videoPlayer.value.source = {
-      type: "video",
-      title: videoData.value.name,
-      sources,
-      poster: videoData.value.cover,
-    };
+    videoSources.value = (await Promise.all(requests))
+      .filter((source): source is VideoSource => source !== null)
+      .sort((first, second) => second.quality - first.quality);
+    if (videoSources.value.length === 0) {
+      window.$message.error("播放地址获取失败");
+      return;
+    }
+    const defaultSource =
+      videoSources.value.find((source) => source.quality === 1080) || videoSources.value[0];
+    selectedQuality.value = defaultSource.quality;
+    setVideoSource(defaultSource);
     // 获取评论
     getCommentData(id);
   } catch (error) {
@@ -340,22 +348,18 @@ onDeactivated(() => {
 
 onMounted(() => {
   closeMusic();
-  // 初始化播放器
-  initPlayer();
   // 获取视频数据
   getVideoData(videoId.value, videoType.value);
 });
 
 onUnmounted(() => {
   closeMusic(false);
+  videoRef.value?.pause();
 });
 </script>
 
 <style lang="scss" scoped>
 .video {
-  --plyr-color-main: var(--primary-hex);
-  --plyr-video-control-color-hover: var(--background-hex);
-  --plyr-control-radius: 8px;
   .info {
     display: flex;
     flex-direction: column;
@@ -385,32 +389,21 @@ onUnmounted(() => {
     width: 100%;
     border-radius: 12px;
     overflow: hidden;
-    :deep(.plyr) {
-      height: 100%;
+    .skin {
+      display: block;
       width: 100%;
+      aspect-ratio: 16 / 9;
       max-height: 520px;
-      border-radius: 12px;
-      .plyr__control {
-        &.plyr__control--overlaid {
-          opacity: 1;
-          background-color: rgba(var(--primary), 0.26);
-          backdrop-filter: blur(10px);
-        }
-        &:hover {
-          background-color: rgba(var(--primary), 0.56);
-        }
-      }
+      --media-accent-color: var(--primary-hex);
+      --media-border-radius: 12px;
     }
-    // &.hidden {
-    //   :deep(.plyr) {
-    //     position: fixed;
-    //     right: 40px;
-    //     bottom: 40px;
-    //     width: 400px;
-    //     height: auto;
-    //     z-index: 999;
-    //   }
-    // }
+    .quality-selector {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 100px;
+      z-index: 1;
+    }
   }
   .menu {
     height: 40px;
