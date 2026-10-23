@@ -269,6 +269,23 @@ export const useAppearanceSettings = (): SettingConfig => {
             condition: () => settingStore.playerBackgroundType === "animation",
             children: [
               {
+                key: "playerBackgroundRenderer",
+                label: "背景渲染器",
+                type: "select",
+                description: "选择流体背景的渲染方式",
+                options: [
+                  { label: "网格渐变", value: "mesh" },
+                  { label: "PixiJS", value: "pixi" },
+                  { label: "Isolation", value: "isolation" },
+                  { label: "Titanium 流沙", value: "titanium" },
+                ],
+                show: () => settingStore.playerBackgroundType === "animation",
+                value: computed({
+                  get: () => settingStore.playerBackgroundRenderer,
+                  set: (v) => (settingStore.playerBackgroundRenderer = v),
+                }),
+              },
+              {
                 key: "playerBackgroundFps",
                 label: "背景动画帧率",
                 type: "input-number",
@@ -328,6 +345,116 @@ export const useAppearanceSettings = (): SettingConfig => {
                 value: computed({
                   get: () => settingStore.playerBackgroundLowFreqVolume,
                   set: (v) => (settingStore.playerBackgroundLowFreqVolume = v),
+                }),
+              },
+              {
+                key: "playerBackgroundTitaniumPaletteAlgorithm",
+                label: "Titanium 取色算法",
+                type: "select",
+                options: [
+                  { label: "自动", value: "auto" },
+                  { label: "K-Means", value: "kmeans" },
+                  { label: "八叉树", value: "octtree" },
+                ],
+                show: () =>
+                  settingStore.playerBackgroundType === "animation" &&
+                  settingStore.playerBackgroundRenderer === "titanium",
+                value: computed({
+                  get: () => settingStore.playerBackgroundTitaniumPaletteAlgorithm,
+                  set: (v) => (settingStore.playerBackgroundTitaniumPaletteAlgorithm = v),
+                }),
+              },
+              {
+                key: "playerBackgroundTitaniumGrain",
+                label: "Titanium 颗粒强度",
+                type: "slider",
+                min: 0,
+                max: 1,
+                step: 0.01,
+                marks: { 0: "0", 0.5: "0.5", 1: "1" },
+                show: () =>
+                  settingStore.playerBackgroundType === "animation" &&
+                  settingStore.playerBackgroundRenderer === "titanium",
+                value: computed({
+                  get: () => settingStore.playerBackgroundTitaniumGrain,
+                  set: (v) => (settingStore.playerBackgroundTitaniumGrain = v),
+                }),
+              },
+              {
+                key: "playerBackgroundTitaniumSparkle",
+                label: "Titanium 闪粉强度",
+                type: "slider",
+                min: 0,
+                max: 1,
+                step: 0.01,
+                marks: { 0: "0", 0.5: "0.5", 1: "1" },
+                show: () =>
+                  settingStore.playerBackgroundType === "animation" &&
+                  settingStore.playerBackgroundRenderer === "titanium",
+                value: computed({
+                  get: () => settingStore.playerBackgroundTitaniumSparkle,
+                  set: (v) => (settingStore.playerBackgroundTitaniumSparkle = v),
+                }),
+              },
+              {
+                key: "playerBackgroundTitaniumSheen",
+                label: "Titanium 金属高光",
+                type: "slider",
+                min: 0,
+                max: 1,
+                step: 0.01,
+                marks: { 0: "0", 0.5: "0.5", 1: "1" },
+                show: () =>
+                  settingStore.playerBackgroundType === "animation" &&
+                  settingStore.playerBackgroundRenderer === "titanium",
+                value: computed({
+                  get: () => settingStore.playerBackgroundTitaniumSheen,
+                  set: (v) => (settingStore.playerBackgroundTitaniumSheen = v),
+                }),
+              },
+              {
+                key: "playerBackgroundTitaniumMetalness",
+                label: "Titanium 金属化程度",
+                type: "slider",
+                min: 0,
+                max: 1,
+                step: 0.01,
+                marks: { 0: "0", 0.5: "0.5", 1: "1" },
+                show: () =>
+                  settingStore.playerBackgroundType === "animation" &&
+                  settingStore.playerBackgroundRenderer === "titanium",
+                value: computed({
+                  get: () => settingStore.playerBackgroundTitaniumMetalness,
+                  set: (v) => (settingStore.playerBackgroundTitaniumMetalness = v),
+                }),
+              },
+              {
+                key: "playerBackgroundTitaniumCrestShiftMs",
+                label: "Titanium 锋线迁移时长",
+                type: "input-number",
+                description: "换封面时锋线迁移的时长，单位毫秒",
+                min: 300,
+                max: 6000,
+                step: 100,
+                show: () =>
+                  settingStore.playerBackgroundType === "animation" &&
+                  settingStore.playerBackgroundRenderer === "titanium",
+                value: computed({
+                  get: () => settingStore.playerBackgroundTitaniumCrestShiftMs,
+                  set: (v) => (settingStore.playerBackgroundTitaniumCrestShiftMs = v),
+                }),
+              },
+              {
+                key: "playerBackgroundTitaniumDithering",
+                label: "Titanium 抖动",
+                type: "switch",
+                description: "添加轻微噪声，减少颗粒产生的色带",
+                show: () =>
+                  settingStore.playerBackgroundType === "animation" &&
+                  settingStore.playerBackgroundRenderer === "titanium",
+                value: computed({
+                  get: () => settingStore.playerBackgroundTitaniumDithering,
+                  set: (v) => (settingStore.playerBackgroundTitaniumDithering = v),
                 }),
               },
             ],

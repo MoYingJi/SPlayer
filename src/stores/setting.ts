@@ -6,6 +6,9 @@ import { defineStore } from "pinia";
 import { CURRENT_SETTING_SCHEMA_VERSION, settingMigrations } from "./migrations/settingMigrations";
 import { ThemeColorType } from "@/types/color";
 import type { LyricPriority } from "@/types/lyric";
+import type { PaletteAlgorithm } from "@applemusic-like-lyrics/core";
+
+export type PlayerBackgroundRenderer = "mesh" | "pixi" | "isolation" | "titanium";
 
 export interface SettingState {
   /** Schema 版本号 */
@@ -175,6 +178,8 @@ export interface SettingState {
   commentDisplayMode: "fullscreen" | "left" | "right";
   /** 背景类型 */
   playerBackgroundType: "none" | "animation" | "blur" | "color";
+  /** 背景渲染器 */
+  playerBackgroundRenderer: PlayerBackgroundRenderer;
   /** 背景动画帧率 */
   playerBackgroundFps: number;
   /** 背景动画流动速度 */
@@ -185,6 +190,20 @@ export interface SettingState {
   playerBackgroundLowFreqVolume: boolean;
   /** 背景动画渲染比例 */
   playerBackgroundRenderScale: number;
+  /** Titanium 背景取色算法 */
+  playerBackgroundTitaniumPaletteAlgorithm: PaletteAlgorithm;
+  /** Titanium 背景颗粒强度 */
+  playerBackgroundTitaniumGrain: number;
+  /** Titanium 背景闪粉强度 */
+  playerBackgroundTitaniumSparkle: number;
+  /** Titanium 背景金属高光 */
+  playerBackgroundTitaniumSheen: number;
+  /** Titanium 背景金属化程度 */
+  playerBackgroundTitaniumMetalness: number;
+  /** Titanium 背景锋线迁移时长 */
+  playerBackgroundTitaniumCrestShiftMs: number;
+  /** Titanium 背景是否启用抖动 */
+  playerBackgroundTitaniumDithering: boolean;
   /** 播放器元素自动隐藏 */
   autoHidePlayerMeta: boolean;
   /** 记忆最后进度 */
@@ -549,11 +568,19 @@ export const useSettingStore = defineStore("setting", {
     playerType: "cover",
     commentDisplayMode: "left",
     playerBackgroundType: "animation",
+    playerBackgroundRenderer: "mesh",
     playerBackgroundFps: 30,
     playerBackgroundFlowSpeed: 4,
     playerBackgroundPause: true,
     playerBackgroundLowFreqVolume: false,
     playerBackgroundRenderScale: 0.5,
+    playerBackgroundTitaniumPaletteAlgorithm: "auto",
+    playerBackgroundTitaniumGrain: 0.7,
+    playerBackgroundTitaniumSparkle: 0.75,
+    playerBackgroundTitaniumSheen: 0.5,
+    playerBackgroundTitaniumMetalness: 0.35,
+    playerBackgroundTitaniumCrestShiftMs: 2000,
+    playerBackgroundTitaniumDithering: true,
     autoHidePlayerMeta: true,
     memoryLastSeek: true,
     progressTooltipShow: true,

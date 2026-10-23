@@ -24,6 +24,8 @@
         :hasLyric="musicStore.isHasLrc"
         :lowFreqVolume="lowFreqVolume"
         :renderScale="settingStore.playerBackgroundRenderScale ?? 0.5"
+        :renderEngine="settingStore.playerBackgroundRenderer"
+        :titaniumOptions="titaniumOptions"
       />
     </Transition>
   </div>
@@ -32,11 +34,22 @@
 <script setup lang="ts">
 import { useMusicStore, useSettingStore, useStatusStore } from "@/stores";
 import { usePlayerController } from "@/core/player/PlayerController";
+import type { TitaniumRendererOptions } from "@applemusic-like-lyrics/core";
 
 const musicStore = useMusicStore();
 const settingStore = useSettingStore();
 const statusStore = useStatusStore();
 const player = usePlayerController();
+
+const titaniumOptions = computed<Partial<TitaniumRendererOptions>>(() => ({
+  paletteAlgorithm: settingStore.playerBackgroundTitaniumPaletteAlgorithm,
+  grain: settingStore.playerBackgroundTitaniumGrain,
+  sparkle: settingStore.playerBackgroundTitaniumSparkle,
+  sheen: settingStore.playerBackgroundTitaniumSheen,
+  metalness: settingStore.playerBackgroundTitaniumMetalness,
+  crestShiftMs: settingStore.playerBackgroundTitaniumCrestShiftMs,
+  dithering: settingStore.playerBackgroundTitaniumDithering,
+}));
 
 // 低频音量
 const lowFreqVolume = ref(1.0);

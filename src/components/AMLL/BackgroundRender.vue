@@ -5,9 +5,24 @@
 import {
   type AbstractBaseRenderer,
   type BaseRenderer,
+  type TitaniumRendererOptions,
   BackgroundRender as CoreBackgroundRender,
+  IsolationRenderer,
   MeshGradientRenderer,
+  PixiRenderer,
+  TitaniumRenderer,
 } from "@applemusic-like-lyrics/core";
+import type { PlayerBackgroundRenderer } from "@/stores/setting";
+
+const RENDERER_MAP: Record<
+  PlayerBackgroundRenderer,
+  new (canvas: HTMLCanvasElement) => BaseRenderer
+> = {
+  mesh: MeshGradientRenderer,
+  pixi: PixiRenderer,
+  isolation: IsolationRenderer,
+  titanium: TitaniumRenderer,
+};
 
 export interface BackgroundRenderProps {
   /** 设置背景专辑资源 (图片URL、Image对象或Video对象) */
@@ -26,6 +41,10 @@ export interface BackgroundRenderProps {
   lowFreqVolume?: number;
   /** 渲染缩放比例，默认为 0.5 */
   renderScale?: number;
+  /** 渲染器标识 */
+  renderEngine?: PlayerBackgroundRenderer;
+  /** Titanium 渲染器参数 */
+  titaniumOptions?: Partial<TitaniumRendererOptions>;
   /** 渲染器类，默认为 MeshGradientRenderer */
   renderer?: new (...args: ConstructorParameters<typeof BaseRenderer>) => BaseRenderer;
 }
@@ -42,14 +61,24 @@ const props = withDefaults(defineProps<BackgroundRenderProps>(), {
   hasLyric: true,
   lowFreqVolume: 1.0,
   renderScale: 0.5,
-  renderer: () => MeshGradientRenderer,
+  renderEngine: "mesh",
   albumIsVideo: false,
 });
 
 const wrapperRef = useTemplateRef<HTMLDivElement>("wrapper-ref");
 
 // 外部类实例
-const bgRenderRef = shallowRef<AbstractBaseRenderer>();
+const bgRenderRef = shallowRef<CoreBackgroundRender<BaseRenderer>>();
+
+const getRenderer = () =>
+  props.renderer ?? RENDERER_MAP[props.renderEngine] ?? MeshGradientRenderer;
+
+const applyTitaniumOptions = () => {
+  const renderer = bgRenderRef.value?.getRenderer();
+  if (renderer instanceof TitaniumRenderer && props.titaniumOptions) {
+    renderer.setOptions(props.titaniumOptions);
+  }
+};
 
 /**
  * 统一更新状态
@@ -68,6 +97,7 @@ const updateRendererState = () => {
   renderer.setRenderScale(props.renderScale);
   renderer.setLowFreqVolume(props.lowFreqVolume);
   renderer.setHasLyric(props.hasLyric);
+  applyTitaniumOptions();
   // 播放状态
   if (props.playing) {
     renderer.resume();
@@ -79,7 +109,7 @@ const updateRendererState = () => {
 onMounted(() => {
   if (wrapperRef.value) {
     // 初始化渲染器核心
-    bgRenderRef.value = CoreBackgroundRender.new(props.renderer);
+    bgRenderRef.value = CoreBackgroundRender.new<BaseRenderer>(getRenderer());
     // 配置 Canvas 样式
     const el = bgRenderRef.value.getElement();
     el.style.width = "100%";
@@ -166,6 +196,28 @@ watch(
     bgRenderRef.value?.setHasLyric(val);
   },
 );
+
+watch(
+  () => props.renderEngine,
+  () => {
+    const renderer = bgRenderRef.value;
+    if (renderer) {
+      renderer.dispose();
+      bgRenderRef.value = undefined;
+    }
+    if (wrapperRef.value) {
+      bgRenderRef.value = CoreBackgroundRender.new<BaseRenderer>(getRenderer());
+      const el = bgRenderRef.value.getElement();
+      el.style.width = "100%";
+      el.style.height = "100%";
+      el.style.display = "block";
+      wrapperRef.value.appendChild(el);
+      updateRendererState();
+    }
+  },
+);
+
+watch(() => props.titaniumOptions, applyTitaniumOptions, { deep: true });
 
 defineExpose({
   bgRender: bgRenderRef,
