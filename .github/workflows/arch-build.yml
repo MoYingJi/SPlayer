@@ -10,14 +10,18 @@ on:
       - "web/**"
       - "electron/**"
       - "public/**"
+      - "scripts/**"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".gitmodules"
+      - "vendor/**"
       - "electron-builder.config.ts"
       - "electron.vite.config.ts"
       - "tsconfig*.json"
       - ".env.example"
-      - "Dockerfile"
-      - "docker-compose.yml"
+      - "package/archlinux/**"
+      - ".github/workflows/arch-build.yml"
   workflow_dispatch:
     inputs:
       x86_64:

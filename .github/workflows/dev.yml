@@ -11,14 +11,19 @@ on:
       - "web/**"
       - "electron/**"
       - "public/**"
+      - "scripts/**"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".gitmodules"
+      - "vendor/**"
       - "electron-builder.config.ts"
       - "electron.vite.config.ts"
       - "tsconfig*.json"
       - ".env.example"
       - "Dockerfile"
       - "docker-compose.yml"
+      - ".github/workflows/dev.yml"
   workflow_dispatch:
     inputs:
       windows-x64:
@@ -183,6 +188,8 @@ jobs:
       # 检出 Git 仓库
       - name: Check out git repository
         uses: actions/checkout@v6
+        with:
+          submodules: recursive
       # 设置 pnpm
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
@@ -264,6 +271,12 @@ jobs:
       # 安装项目依赖
       - name: Install dependencies
         run: pnpm install
+
+      # 安装并构建 vendor 依赖
+      - name: Install vendors
+        run: pnpm vendors:setup --frozen-lockfile
+      - name: Build vendors
+        run: pnpm vendors:build
 
       # 构建 Electron App
       - name: Build

@@ -63,10 +63,12 @@
 
 ### 快速开始
 
-1. 安装依赖：`pnpm install`
-2. 复制 `.env.example` 为 `.env` 并按需修改
-3. 启动开发：`pnpm dev`
-4. 构建：可以参考 [贡献指南 | SPlayer-Next](https://splayer-next.imsyy.top/contributing.html#构建)
+1. 初始化项目子模块：`git submodule update --init --recursive`
+2. 安装项目依赖：`pnpm install`
+3. 安装各 vendor 的依赖：`pnpm vendors:setup`
+4. 复制 `.env.example` 为 `.env` 并按需修改
+5. 启动开发：`pnpm dev`
+6. 构建：可以参考 [贡献指南 | SPlayer-Next](https://splayer-next.imsyy.top/contributing.html#构建)
 
 ### 跳过原生模块构建
 

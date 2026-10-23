@@ -15,6 +15,7 @@ export default tseslint.config(
       "**/docs",
       "**/auto-imports.d.ts",
       "**/components.d.ts",
+      "vendor/applemusic-like-lyrics/**",
       "**/resources/**",
       "native/**/index.d.ts",
     ],

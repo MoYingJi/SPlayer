@@ -53,6 +53,8 @@ pkgver() {
 prepare() {
     cd "${srcdir}/splayer"
 
+    git submodule update --init --recursive
+
     _elec_ver=$(jq -r '.devDependencies["electron"] // .dependencies["electron"]' "${srcdir}/splayer/package.json" | tr -d '^')
     _main_ver=$(echo "${_elec_ver}" | cut -d. -f1)
 
@@ -116,6 +118,7 @@ prepare() {
     fi
 
     NODE_ENV=development    pnpm install
+    NODE_ENV=development    pnpm vendors:setup --frozen-lockfile
     NODE_ENV=development    pnpm add -w object-inspect side-channel-list side-channel-map side-channel-weakmap
     # cargo fetch
 }
