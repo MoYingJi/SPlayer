@@ -1,3 +1,4 @@
 [submodule "amll"]
 	path = vendor/applemusic-like-lyrics
-	url = https://github.com/amll-dev/applemusic-like-lyrics.git
+	branch = dev-mo
+	url = https://github.com/MoYingJi/applemusic-like-lyrics.git
